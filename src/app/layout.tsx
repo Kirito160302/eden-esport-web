@@ -3,6 +3,7 @@ import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Effects from "@/components/Effects";
+import { CartProvider } from "@/components/CartProvider";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://eden-esport.fr"),
@@ -50,10 +51,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
         <a href="#main" className="skip">Aller au contenu</a>
-        <Effects />
-        <Header />
-        <main id="main">{children}</main>
-        <Footer />
+        <CartProvider>
+          <Effects />
+          <Header />
+          <main id="main">{children}</main>
+          <Footer />
+        </CartProvider>
       </body>
     </html>
   );

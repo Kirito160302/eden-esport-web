@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { CartBadge } from "./shop";
 
 const NAV: [string, string][] = [
   ["Eden", "/eden"],
@@ -64,6 +65,7 @@ export default function Header() {
             ))}
           </nav>
           <div className="header-cta">
+            <CartBadge />
             <Link href="/rejoindre" className="btn btn--sm">Rejoindre Eden<span className="arw">→</span></Link>
             <button className="burger" aria-label="Ouvrir le menu" aria-expanded={open}
               onClick={() => setOpen((v) => !v)}>

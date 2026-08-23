@@ -1,26 +1,29 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getProduct, getProducts } from "@/lib/content";
 import { Breadcrumb, SectionHead } from "@/components/ui";
-import { ProductCard } from "@/components/cards";
-import SizePicker from "@/components/SizePicker";
+import { ProductMedia, ProductBuy } from "@/components/shop";
+import { PRODUCTS } from "@/lib/shop-data";
 
-export async function generateStaticParams() {
-  const products = await getProducts();
-  return products.map((p) => ({ slug: p.slug }));
+const euro = (n: number) => n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" }).replace(",00", "");
+
+export function generateStaticParams() {
+  return PRODUCTS.map((p) => ({ slug: p.slug }));
 }
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const p = await getProduct(slug);
+  const p = PRODUCTS.find((x) => x.slug === slug);
   return { title: p ? p.name : "Produit" };
 }
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const p = await getProduct(slug);
+  const p = PRODUCTS.find((x) => x.slug === slug);
   if (!p) notFound();
-  const related = (await getProducts()).filter((x) => x.slug !== slug).slice(0, 3);
+  const related = PRODUCTS.filter((x) => x.slug !== slug && x.category === p.category).slice(0, 3);
+  const fallback = PRODUCTS.filter((x) => x.slug !== slug).slice(0, 3);
+  const suggestions = related.length ? related : fallback;
+
   return (
     <>
       <div className="page-hero"><div className="wrap">
@@ -29,28 +32,39 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       <section className="section"><div className="wrap">
         <div className="product">
           <div className="product-media">
-            {p.image === "jersey" ? <img src="/jersey.jpg" alt={p.name} /> : <img src="/symbol.png" alt="" style={{ width: "55%", opacity: 0.7 }} />}
+            <ProductMedia image={p.image} alt={p.name} />
+            {p.badge && <span className="shop-badge">{p.badge}</span>}
           </div>
           <div>
             <span className="tag tag--gold">{p.category}</span>
             <h1 style={{ fontSize: "var(--fs-h1)", margin: ".6rem 0" }}>{p.name}</h1>
-            <p className="price">{p.price} <span className="tmp" style={{ fontSize: ".8rem" }}>prix indicatif</span></p>
-            <p className="muted" style={{ margin: "1rem 0" }}>{p.description}</p>
-            <div style={{ fontFamily: "var(--f-display)", fontSize: ".72rem", letterSpacing: ".1em", textTransform: "uppercase", color: "var(--muted)" }}>Taille</div>
-            <SizePicker sizes={p.sizes} />
-            <div style={{ display: "flex", gap: ".7rem", flexWrap: "wrap" }}>
-              <Link href="/panier" className="btn">Ajouter au panier<span className="arw">→</span></Link>
-              <Link href="/boutique" className="btn btn--ghost">Continuer</Link>
-            </div>
-            <div className="grid-2" style={{ marginTop: "1.6rem" }}>
-              <div className="panel"><h3 style={{ fontSize: ".95rem" }}>Livraison</h3><p>Expédition sous 3 à 5 jours (à confirmer).</p></div>
-              <div className="panel"><h3 style={{ fontSize: ".95rem" }}>Retours</h3><p>Retours gratuits sous 14 jours (à confirmer).</p></div>
+            <p className="price">
+              {p.oldPrice && <span className="old" style={{ marginRight: ".5rem" }}>{euro(p.oldPrice)}</span>}
+              {euro(p.price)} <span className="tmp" style={{ fontSize: ".8rem" }}>prix indicatif</span>
+            </p>
+            <p className="muted" style={{ margin: "1rem 0 1.4rem" }}>{p.description}</p>
+
+            <ProductBuy p={p} />
+
+            <div className="grid-2" style={{ marginTop: "1.8rem" }}>
+              <div className="panel"><h3 style={{ fontSize: ".95rem" }}>Commande & paiement</h3><p>Ta commande se finalise sur notre boutique officielle (Nolt) — mêmes articles, paiement sécurisé.</p></div>
+              <div className="panel"><h3 style={{ fontSize: ".95rem" }}>Livraison & retours</h3><p>Expédition et retours gérés par notre boutique partenaire.</p></div>
             </div>
           </div>
         </div>
         <div style={{ marginTop: "3rem" }}>
           <SectionHead eyebrow="Vous aimerez aussi" title="Produits associés" />
-          <div className="grid-3">{related.map((r) => <ProductCard key={r.slug} product={r} />)}</div>
+          <div className="shop-grid">
+            {suggestions.map((r) => (
+              <Link key={r.slug} href={`/boutique/${r.slug}`} className="shop-card" style={{ textDecoration: "none" }}>
+                <div className="shop-card-media"><ProductMedia image={r.image} alt={r.name} />{r.badge && <span className="shop-badge">{r.badge}</span>}</div>
+                <div className="shop-card-body">
+                  <span className="shop-card-name">{r.name}</span>
+                  <div className="shop-card-price"><span>{euro(r.price)}</span></div>
+                </div>
+              </Link>
+            ))}
+          </div>
         </div>
       </div></section>
     </>
