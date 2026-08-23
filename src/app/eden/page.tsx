@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHero, SectionHead } from "@/components/ui";
 import { VALUES } from "@/lib/content";
+import ValuesCarousel from "@/components/ValuesCarousel";
 
 export const metadata: Metadata = { title: "Eden — À propos" };
 
@@ -28,7 +29,7 @@ export default function EdenPage() {
           <p className="muted" style={{ marginBottom: "1rem" }}>Née de la conviction que l&apos;esport peut fédérer, transmettre et faire grandir, Eden réunit des passionnés autour d&apos;un même cap : bâtir une structure sérieuse, humaine et tournée vers l&apos;avenir.</p>
           <p className="muted">Nous voulons offrir un cadre d&apos;excellence à nos joueurs, un terrain de jeu à notre communauté, et des actions concrètes auprès des jeunes et des territoires.</p>
         </div>
-        <div className="essence-visual" aria-hidden="true"><span className="ring"></span><span className="ring r2"></span><img src="/symbol.png" alt="" /></div>
+        <div className="photo-panel"><img src="/aventure.jpg" alt="L'équipe Eden Esport lors d'un événement" /></div>
       </div></section>
 
       <section className="section" style={{ paddingTop: 0 }}><div className="wrap">
@@ -47,15 +48,8 @@ export default function EdenPage() {
       </div></section>
 
       <section className="section" style={{ paddingTop: 0 }}><div className="wrap">
-        <SectionHead eyebrow="Ce qui nous guide" title="Nos cinq valeurs" />
-        <div className="grid-3">
-          {VALUES.map(([name, desc]) => (
-            <div className="value-card" key={name}>
-              <span className="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.4}><path d="M12 3 15 9l7 .5-5.4 4.5L18 21l-6-3.8L6 21l1.4-7L2 9.5 9 9z" /></svg></span>
-              <h3>{name}</h3><p>{desc}</p>
-            </div>
-          ))}
-        </div>
+        <SectionHead eyebrow="Ce qui nous guide" title="Nos cinq valeurs" center />
+        <ValuesCarousel values={VALUES} />
       </div></section>
 
       <section className="section" style={{ paddingTop: 0 }}><div className="wrap">
