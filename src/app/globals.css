@@ -789,3 +789,74 @@ main section,.finale{scroll-margin-top:90px}
 .ev-map{position:relative;aspect-ratio:16/10;border:1px solid var(--line-2);overflow:hidden;background:var(--surface-2)}
 .ev-map iframe{position:absolute;inset:0;width:100%;height:100%;border:0;filter:grayscale(.25) contrast(1.05)}
 @media(max-width:820px){.ev-map{aspect-ratio:16/12}}
+
+/* =====================================================================
+   PAGE ACTUALITÉS — PORTAIL MÉDIA (journal esport)
+   ===================================================================== */
+.journal{display:grid;grid-template-columns:1fr 300px;gap:2rem;align-items:start}
+@media(max-width:960px){.journal{grid-template-columns:1fr}}
+
+/* --- chaînes / jeux --- */
+.ch-tabs{display:flex;gap:.7rem;flex-wrap:wrap;margin-bottom:1.8rem}
+.ch-tab{display:inline-flex;align-items:center;gap:.6rem;padding:.55rem .95rem .55rem .55rem;border:1px solid var(--line-2);background:var(--surface);
+  color:var(--muted);font-family:var(--f-display);font-weight:600;font-size:.9rem;letter-spacing:.01em;cursor:pointer;
+  border-radius:999px;transition:border-color .3s,color .3s,background .3s,transform .3s}
+.ch-tab:hover{color:var(--text);border-color:var(--line-3);transform:translateY(-2px)}
+.ch-tab.on{color:var(--text);border-color:var(--violet);background:radial-gradient(circle at 20% 0%,rgba(125,92,255,.22),transparent 70%),var(--surface)}
+.ch-ico{width:30px;height:30px;flex:none;border-radius:50%;display:grid;place-items:center;overflow:hidden;
+  background:var(--surface-2);color:#0a0a12;font-family:var(--f-display);font-weight:800;font-size:.9rem;text-transform:uppercase}
+.ch-ico img{width:70%;height:70%;object-fit:contain}
+.ch-tab.on .ch-ico{box-shadow:0 0 0 2px rgba(255,255,255,.12)}
+
+/* --- blocs --- */
+.jp-block{margin-bottom:2.4rem}
+.jp-head{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;margin-bottom:1.1rem;
+  padding-bottom:.6rem;border-bottom:1px solid var(--line-2)}
+.jp-head h2{font-family:var(--f-display);font-size:clamp(1.15rem,2.4vw,1.5rem);font-weight:700;letter-spacing:-.01em}
+.jp-seeall{font-family:var(--f-display);font-size:.82rem;font-weight:600;color:var(--lavender);text-decoration:none;white-space:nowrap;transition:color .3s}
+.jp-seeall:hover{color:var(--violet)}
+
+/* --- placeholder données live --- */
+.jp-placeholder{display:flex;align-items:center;gap:.7rem;padding:1.1rem 1.2rem;border:1px dashed var(--line-3);
+  background:var(--surface);color:var(--muted);font-size:.9rem;border-radius:var(--r)}
+.jp-placeholder strong{color:var(--lavender)}
+.jp-live-dot{width:9px;height:9px;flex:none;border-radius:50%;background:var(--violet);box-shadow:0 0 0 0 rgba(125,92,255,.6);animation:jpPulse 1.8s infinite}
+@keyframes jpPulse{0%{box-shadow:0 0 0 0 rgba(125,92,255,.5)}70%{box-shadow:0 0 0 8px rgba(125,92,255,0)}100%{box-shadow:0 0 0 0 rgba(125,92,255,0)}}
+
+/* --- article à la une --- */
+.jp-featured{display:grid;grid-template-columns:300px 1fr;gap:1.4rem;text-decoration:none;color:inherit;
+  border:1px solid var(--line-2);background:var(--surface);overflow:hidden;transition:border-color .35s,transform .35s;margin-bottom:1.2rem}
+.jp-featured:hover{border-color:var(--line-3);transform:translateY(-3px)}
+@media(max-width:620px){.jp-featured{grid-template-columns:1fr}}
+.jp-feat-thumb{position:relative;min-height:190px;display:grid;place-items:center;
+  background:radial-gradient(circle at 50% 30%,rgba(125,92,255,.3),transparent 62%),var(--surface-2);overflow:hidden}
+.jp-feat-thumb img{width:56px;height:56px;object-fit:contain;opacity:.5}
+.jp-feat-body{padding:1.4rem 1.5rem;display:flex;flex-direction:column}
+.jp-feat-body h3{font-family:var(--f-display);font-size:1.35rem;font-weight:700;line-height:1.15;margin:.5rem 0 .5rem}
+.jp-feat-body p{font-size:.94rem;color:var(--muted);flex:1}
+.jp-feat-body .more{margin-top:.9rem}
+
+/* --- liste d'articles (lignes) --- */
+.jp-list{display:flex;flex-direction:column}
+.jp-row{display:flex;align-items:center;gap:1rem;padding:.9rem 0;text-decoration:none;color:inherit;border-bottom:1px solid var(--line)}
+.jp-row:last-child{border-bottom:0}
+.jp-row-thumb{width:64px;height:64px;flex:none;display:grid;place-items:center;overflow:hidden;border:1px solid var(--line-2);
+  background:radial-gradient(circle at 50% 30%,rgba(125,92,255,.24),transparent 65%),var(--surface-2);transition:border-color .3s}
+.jp-row-thumb img{width:44%;height:44%;object-fit:contain;opacity:.55}
+.jp-row:hover .jp-row-thumb{border-color:var(--violet)}
+.jp-row-body{display:flex;flex-direction:column;gap:.25rem;min-width:0}
+.jp-row-meta{font-family:var(--f-display);font-size:.72rem;letter-spacing:.04em;text-transform:uppercase;color:var(--muted-2)}
+.jp-row-meta .cat{color:var(--lavender)}
+.jp-row-title{font-family:var(--f-display);font-weight:600;font-size:1.02rem;line-height:1.25;transition:color .3s}
+.jp-row:hover .jp-row-title{color:var(--lavender)}
+
+/* --- colonne sponsors --- */
+.journal-side{position:sticky;top:90px;display:flex;flex-direction:column;gap:1rem}
+@media(max-width:960px){.journal-side{position:static}}
+.jp-side-label{font-family:var(--f-display);font-size:.72rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--muted-2)}
+.jp-ad{display:grid;place-items:center;min-height:150px;border:1px solid var(--line-2);background:var(--surface);
+  overflow:hidden;text-decoration:none;color:var(--muted);font-family:var(--f-display);font-weight:600;transition:border-color .3s,transform .3s}
+.jp-ad:hover{border-color:var(--line-3);transform:translateY(-2px)}
+.jp-ad img{width:100%;height:100%;object-fit:contain;padding:1rem}
+.jp-ad--empty{border-style:dashed;color:var(--muted-2);font-size:.82rem;letter-spacing:.04em;text-transform:uppercase;cursor:default}
+.jp-ad--empty:hover{transform:none;border-color:var(--line-2)}

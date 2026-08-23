@@ -1,27 +1,28 @@
 import type { Metadata } from "next";
-import { getArticles } from "@/lib/content";
+import { getArticles, getEvents } from "@/lib/content";
+import { ESPORT } from "@/lib/esport-data";
 import { PageHero } from "@/components/ui";
-import { NewsCard } from "@/components/cards";
-import Filterable from "@/components/Filterable";
+import JournalPortal from "@/components/JournalPortal";
 
 export const metadata: Metadata = { title: "Actualités" };
 
 export default async function ActualitesPage() {
-  const news = await getArticles("news");
-  const items = news.map((a) => ({ cat: a.category, node: <NewsCard key={a.slug} article={a} /> }));
+  const [articles, events] = await Promise.all([getArticles(), getEvents()]);
+
+  const matches = ESPORT.flatMap((g) => g.calendar.map((m) => ({ ...m, game: g.label, gameKey: g.key })));
+  const tournaments = events
+    .filter((e) => e.category === "Tournoi")
+    .map((e) => ({ slug: e.slug, title: e.title, date: e.date, place: e.place }));
+
   return (
     <>
       <PageHero
         crumbs={[{ label: "Accueil", href: "/" }, { label: "Actualités" }]}
-        eyebrow="Le fil Eden" title="Actualités"
-        lead="Toute la vie de la structure : annonces, coulisses, esport et communauté."
+        eyebrow="Le média Eden" title="Actualités & esport"
+        lead="L'actu d'Eden et de l'esport — choisis une chaîne pour suivre les matchs, les tournois et les dernières news."
       />
       <section className="section"><div className="wrap">
-        <Filterable
-          options={[{ label: "Tout", value: "all" }, { label: "Structure", value: "Structure" }, { label: "Esport", value: "Esport" }, { label: "Communauté", value: "Communauté" }]}
-          items={items} gridClass="news-grid"
-        />
-        <p className="tmp" style={{ marginTop: "1.4rem" }}>* Articles d&apos;exemple — contenu éditorial via le CMS.</p>
+        <JournalPortal articles={articles} matches={matches} tournaments={tournaments} />
       </div></section>
     </>
   );
