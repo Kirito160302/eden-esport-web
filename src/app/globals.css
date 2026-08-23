@@ -860,3 +860,40 @@ main section,.finale{scroll-margin-top:90px}
 .jp-ad img{width:100%;height:100%;object-fit:contain;padding:1rem}
 .jp-ad--empty{border-style:dashed;color:var(--muted-2);font-size:.82rem;letter-spacing:.04em;text-transform:uppercase;cursor:default}
 .jp-ad--empty:hover{transform:none;border-color:var(--line-2)}
+
+/* =====================================================================
+   PAGE PARTENAIRES — bandeau défilant + blocs
+   ===================================================================== */
+/* --- bandeau défilant --- */
+.pt-marquee{position:relative;overflow:hidden;border-top:1px solid var(--line-2);border-bottom:1px solid var(--line-2);
+  background:linear-gradient(180deg,var(--surface),var(--bg-3));padding:1.6rem 0;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
+.pt-marquee-track{display:flex;align-items:center;gap:clamp(2.5rem,6vw,5rem);width:max-content;animation:ptScroll 32s linear infinite}
+.pt-marquee:hover .pt-marquee-track{animation-play-state:paused}
+.pt-marquee-item{flex:none;display:grid;place-items:center;height:52px}
+.pt-marquee-item img{max-height:52px;max-width:180px;width:auto;object-fit:contain;filter:grayscale(1) brightness(1.6);opacity:.62;transition:filter .3s,opacity .3s}
+.pt-marquee-item:hover img{filter:none;opacity:1}
+.pt-logo-text{font-family:var(--f-display);font-weight:800;font-size:1.5rem;letter-spacing:.02em;color:var(--muted);white-space:nowrap;text-transform:uppercase;transition:color .3s}
+.pt-marquee-item:hover .pt-logo-text{color:var(--lavender)}
+@keyframes ptScroll{from{transform:translateX(0)}to{transform:translateX(-25%)}}
+@media(prefers-reduced-motion:reduce){.pt-marquee-track{animation:none;justify-content:center;flex-wrap:wrap}}
+
+/* --- blocs partenaires --- */
+.pt-list{display:flex;flex-direction:column;gap:1.6rem}
+.pt-block{display:grid;grid-template-columns:340px 1fr;gap:2.2rem;align-items:center;
+  border:1px solid var(--line-2);background:var(--surface);padding:clamp(1.6rem,3vw,2.6rem);
+  transition:border-color .35s,transform .35s}
+.pt-block:hover{border-color:var(--line-3);transform:translateY(-3px)}
+.pt-block--rev .pt-block-logo{order:2}
+.pt-block-logo{position:relative;display:grid;place-items:center;min-height:180px;border:1px solid var(--line-2);border-radius:var(--r);
+  background:radial-gradient(circle at 50% 35%,rgba(125,92,255,.16),transparent 65%),var(--surface-2);padding:1.8rem}
+.pt-block-logo-img{max-width:100%;max-height:120px;width:auto;object-fit:contain}
+.pt-block-logo .pt-logo-text{font-size:clamp(1.6rem,3vw,2.2rem);color:var(--text)}
+.pt-block-body h2{font-family:var(--f-display);font-size:clamp(1.5rem,3vw,2rem);font-weight:700;margin:.4rem 0 .7rem}
+.pt-block-body p{color:var(--muted);font-size:1rem;line-height:1.65;margin-bottom:1.4rem;max-width:60ch}
+.pt-tier{display:inline-block;font-family:var(--f-display);font-size:.7rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--gold)}
+@media(max-width:820px){
+  .pt-block,.pt-block--rev{grid-template-columns:1fr}
+  .pt-block--rev .pt-block-logo{order:0}
+  .pt-block-logo{min-height:150px}
+}
