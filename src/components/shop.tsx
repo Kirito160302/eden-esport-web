@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useCart } from "./CartProvider";
-import { CATEGORIES, SHOP, buildCheckoutUrl, type ShopProduct } from "@/lib/shop-data";
+import { CATEGORIES, SHOP, checkoutUrl, type ShopProduct } from "@/lib/shop-data";
 
 /* ---- média produit (jersey / symbol / image perso) ---- */
 export function ProductMedia({ image, alt }: { image: string; alt?: string }) {
@@ -177,10 +177,7 @@ export function CartView() {
     );
   }
 
-  const free = SHOP.freeShippingFrom;
-  const remaining = Math.max(0, free - subtotal);
-  const pct = Math.min(100, Math.round((subtotal / free) * 100));
-  const checkoutUrl = buildCheckoutUrl(items.map((i) => ({ externalId: i.externalId, qty: i.qty })));
+  const shopUrl = checkoutUrl();
 
   return (
     <div className="cart-grid">
@@ -214,29 +211,20 @@ export function CartView() {
       </div>
 
       <aside className="cart-summary">
-        <h3>Récapitulatif</h3>
+        <h3>Ta sélection</h3>
         <div className="line"><span>Sous-total</span><span>{euro(subtotal)}</span></div>
-        <div className="line"><span>Livraison</span><span>{remaining === 0 ? "Offerte" : "Calculée à la commande"}</span></div>
+        <div className="line"><span>Livraison</span><span>définie sur Nolt</span></div>
+        <div className="line total"><span>Total indicatif</span><span>{euro(subtotal)}</span></div>
 
-        {/* jauge livraison offerte */}
-        <div className="ship-bar" aria-hidden="true"><span style={{ width: pct + "%" }} /></div>
-        <p className="tmp" style={{ marginTop: ".4rem" }}>
-          {remaining === 0
-            ? "🎉 Livraison offerte débloquée !"
-            : `Plus que ${euro(remaining)} pour la livraison offerte.`}
-        </p>
-
-        <div className="line total"><span>Total</span><span>{euro(subtotal)}</span></div>
-
-        {checkoutUrl ? (
-          <a href={checkoutUrl} target="_blank" rel="noopener noreferrer" className="btn btn--gold cart-checkout">
-            Finaliser sur notre boutique<span className="arw">→</span>
+        {shopUrl ? (
+          <a href={shopUrl} target="_blank" rel="noopener noreferrer" className="btn btn--gold cart-checkout">
+            Commander sur notre boutique<span className="arw">→</span>
           </a>
         ) : (
-          <Link href="/contact" className="btn btn--gold cart-checkout">Finaliser ma commande<span className="arw">→</span></Link>
+          <Link href="/contact" className="btn btn--gold cart-checkout">Nous contacter<span className="arw">→</span></Link>
         )}
         <p className="cart-note">
-          Paiement sécurisé sur notre boutique officielle propulsée par <strong>Nolt</strong> — tu y retrouves exactement les mêmes articles.
+          La commande, la personnalisation et le paiement se font sur notre boutique officielle propulsée par <strong>Nolt</strong>. Garde cette liste sous les yeux pour retrouver tes pièces&nbsp;: prix ici indicatifs.
         </p>
       </aside>
     </div>

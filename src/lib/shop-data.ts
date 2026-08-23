@@ -1,33 +1,29 @@
 // ============================================================
 //  BOUTIQUE EDEN — vitrine + redirection vers la boutique Nolt
 //  ------------------------------------------------------------
-//  Principe : le visiteur compose son panier ICI (vitrine).
-//  Au moment de payer, on le renvoie vers NOTRE boutique
-//  officielle (propulsée par Nolt) avec les mêmes articles.
+//  Principe : le visiteur compose sa SÉLECTION ICI (vitrine).
+//  Quand il veut commander, on le renvoie vers NOTRE boutique
+//  officielle Nolt, où il configure, commande et paie.
 //
-//  → Pour activer la redirection, renseigne SHOP.checkoutUrl
-//    (l'adresse de ta boutique Nolt). Si ta boutique est de
-//    type Shopify, renseigne aussi SHOP.shopDomain et le champ
-//    "externalId" de chaque produit (id de variante) : le
-//    panier sera alors reconstruit à l'identique via un lien
-//    Shopify (/cart/ID:QUANTITE,...).
-//  → Tant que checkoutUrl est vide, le bouton de paiement
-//    invite simplement à nous contacter (aucun lien cassé).
+//  ⚠️ Nolt (NOLT ONE) est un configurateur, pas un Shopify :
+//    on ne peut PAS transférer le panier automatiquement. On
+//    redirige donc simplement vers la boutique Nolt.
+//
+//  → Renseigne SHOP.checkoutUrl avec l'adresse de TA boutique
+//    Nolt quand elle sera créée (remplace le lien d'exemple).
+//  → Si un jour chaque produit Nolt a sa propre URL, tu peux
+//    remplir "buyUrl" par produit pour un lien direct.
 // ============================================================
 
 export const SHOP = {
-  // Adresse de ta boutique officielle (Nolt). Ex : "https://eden.wearenolt.com"
-  checkoutUrl: "",
-  // (Optionnel) domaine Shopify pour reconstruire le panier à l'identique.
-  // Laisse vide si tu ne l'utilises pas.
-  shopDomain: "",
-  // Livraison offerte à partir de (en €)
-  freeShippingFrom: 120,
+  // Adresse de ta boutique officielle (Nolt). Remplace par la TIENNE quand elle sera créée.
+  // (Ici : lien d'exemple d'une boutique Nolt, en attendant la boutique Eden.)
+  checkoutUrl: "https://club-athletique-beglais.wearenolt.com/public/shops/1d8a5412-69e1-4014-b960-15f1e2e7aef4",
   // Étapes expliquées au visiteur
   howItWorks: [
-    { title: "Compose ton panier", text: "Parcours la collection et ajoute tes pièces avec leur taille, comme sur une vraie boutique." },
-    { title: "Finalise en un clic", text: "Au paiement, on t'emmène sur notre boutique officielle avec exactement les mêmes articles dans ton panier." },
-    { title: "Paiement 100 % sécurisé", text: "Ta commande et ton règlement se font sur notre boutique partenaire (propulsée par Nolt). Rien à ressaisir." },
+    { title: "Compose ta sélection", text: "Parcours la collection et ajoute les pièces qui te plaisent, avec leur taille — comme une liste d'envies." },
+    { title: "Direction la boutique officielle", text: "Quand tu es prêt·e, on t'emmène sur notre boutique officielle Nolt pour passer commande." },
+    { title: "Commande & paiement sur Nolt", text: "Tu choisis, personnalises et règles directement sur notre boutique Nolt. Production et livraison assurées par Nolt." },
   ] as { title: string; text: string }[],
 };
 
@@ -144,15 +140,8 @@ export const PRODUCTS: ShopProduct[] = [
   },
 ];
 
-// Construit un lien de paiement vers la boutique Nolt.
-// - Si shopDomain + tous les externalId sont renseignés → panier Shopify reconstruit.
-// - Sinon → on renvoie checkoutUrl (ou "" si non configuré).
-export function buildCheckoutUrl(items: { externalId?: string; qty: number }[]): string {
-  const canPermalink =
-    SHOP.shopDomain && items.length > 0 && items.every((i) => i.externalId);
-  if (canPermalink) {
-    const parts = items.map((i) => `${i.externalId}:${i.qty}`).join(",");
-    return `${SHOP.shopDomain.replace(/\/$/, "")}/cart/${parts}`;
-  }
+// Lien vers la boutique Nolt officielle (Nolt ne permet pas de transférer
+// un panier depuis l'extérieur : on redirige donc vers la boutique).
+export function checkoutUrl(): string {
   return SHOP.checkoutUrl || "";
 }
