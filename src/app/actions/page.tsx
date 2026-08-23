@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHero, SectionHead } from "@/components/ui";
 
-export const metadata: Metadata = { title: "Nos actions" };
+export const metadata: Metadata = { title: "Nos services" };
 
 const AXES: [string, string][] = [
   ["Compétition", "Des équipes exigeantes qui portent les couleurs d'Eden sur les scènes esport."],
@@ -23,8 +23,8 @@ export default function ActionsPage() {
   return (
     <>
       <PageHero
-        crumbs={[{ label: "Accueil", href: "/" }, { label: "Nos actions" }]}
-        eyebrow="Notre écosystème" title="Nos actions & services"
+        crumbs={[{ label: "Accueil", href: "/" }, { label: "Nos services" }]}
+        eyebrow="Notre écosystème" title="Nos services"
         lead="Bien plus qu'une équipe compétitive : Eden organise, transmet et accompagne. Découvre ce que nous pouvons construire ensemble."
       />
       <section className="section"><div className="wrap">

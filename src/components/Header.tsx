@@ -5,14 +5,40 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CartBadge } from "./shop";
 
-const NAV: [string, string][] = [
-  ["Eden", "/eden"],
-  ["Esport", "/esport"],
-  ["Événements", "/evenements"],
-  ["Nos actions", "/actions"],
-  ["Actualités", "/actualites"],
-  ["Boutique", "/boutique"],
-  ["Partenaires", "/partenaires"],
+type Child = { label: string; href: string; desc?: string };
+type Item = { label: string; href: string; children?: Child[] };
+
+const NAV: Item[] = [
+  {
+    label: "Eden", href: "/eden", children: [
+      { label: "À propos d'Eden", href: "/eden", desc: "Notre histoire & notre vision" },
+      { label: "Notre équipe", href: "/notre-equipe", desc: "Les visages de la structure" },
+    ],
+  },
+  {
+    label: "Esport", href: "/esport", children: [
+      { label: "Nos équipes", href: "/esport", desc: "Rosters, palmarès & calendrier" },
+      { label: "Nos joueurs", href: "/joueurs", desc: "Les profils compétitifs" },
+      { label: "Recrutement", href: "/rejoindre", desc: "Rejoindre une équipe Eden" },
+    ],
+  },
+  { label: "Événements", href: "/evenements" },
+  {
+    label: "Nos services", href: "/actions", children: [
+      { label: "Vue d'ensemble", href: "/actions", desc: "Tout ce qu'Eden propose" },
+      { label: "Organisation d'événements", href: "/services/organisation", desc: "Tournois, LAN & animations" },
+      { label: "Ateliers & médiation", href: "/services/ateliers", desc: "Actions éducatives & jeunesse" },
+      { label: "Consulting & accompagnement", href: "/services/consulting", desc: "Stratégie & production" },
+    ],
+  },
+  {
+    label: "Actualités", href: "/actualites", children: [
+      { label: "Actualités", href: "/actualites", desc: "Le média Eden & esport" },
+      { label: "Blog", href: "/blog", desc: "Guides, analyses & coulisses" },
+    ],
+  },
+  { label: "Boutique", href: "/boutique" },
+  { label: "Partenaires", href: "/partenaires" },
 ];
 
 // Regroupe les sous-routes sous l'onglet parent pour l'état actif.
@@ -35,6 +61,7 @@ export default function Header() {
   const pathname = usePathname() || "/";
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const [openSub, setOpenSub] = useState<string | null>(null);
   const active = activeHref(pathname);
 
   useEffect(() => {
@@ -48,8 +75,8 @@ export default function Header() {
     document.body.style.overflow = open ? "hidden" : "";
   }, [open]);
 
-  // Ferme le menu à chaque changement de page
-  useEffect(() => { setOpen(false); }, [pathname]);
+  // Ferme les menus à chaque changement de page
+  useEffect(() => { setOpen(false); setOpenSub(null); }, [pathname]);
 
   return (
     <>
@@ -59,11 +86,30 @@ export default function Header() {
             <img src="/symbol.png" alt="" width={38} aria-hidden="true" />
             <span className="wm">EDEN<small>E-SPORT</small></span>
           </Link>
+
           <nav className="nav" aria-label="Navigation principale">
-            {NAV.map(([label, href]) => (
-              <Link key={href} href={href} className={active === href ? "on" : ""}>{label}</Link>
+            {NAV.map((item) => (
+              <div className={"nav-item" + (item.children ? " has-menu" : "")} key={item.href + item.label}>
+                <Link href={item.href} className={active === item.href ? "on" : ""}>
+                  {item.label}
+                  {item.children && <span className="caret" aria-hidden="true"></span>}
+                </Link>
+                {item.children && (
+                  <div className="nav-panel" role="menu">
+                    <div className="nav-panel-inner">
+                      {item.children.map((c) => (
+                        <Link key={c.href + c.label} href={c.href} className="nav-sub" role="menuitem">
+                          <span className="nav-sub-label">{c.label}</span>
+                          {c.desc && <span className="nav-sub-desc">{c.desc}</span>}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             ))}
           </nav>
+
           <div className="header-cta">
             <CartBadge />
             <Link href="/rejoindre" className="btn btn--sm">Rejoindre Eden<span className="arw">→</span></Link>
@@ -76,8 +122,26 @@ export default function Header() {
       </header>
 
       <div className={"mobile-menu" + (open ? " open" : "")} aria-hidden={!open}>
-        {NAV.map(([label, href], i) => (
-          <Link key={href} href={href}>{label} <span>{String(i + 1).padStart(2, "0")}</span></Link>
+        {NAV.map((item, i) => (
+          <div className="mm-item" key={item.href + item.label}>
+            <div className="mm-row">
+              <Link href={item.href} className="mm-main">{item.label} <span>{String(i + 1).padStart(2, "0")}</span></Link>
+              {item.children && (
+                <button className={"mm-toggle" + (openSub === item.label ? " open" : "")} type="button"
+                  aria-label={`Sous-menu ${item.label}`} aria-expanded={openSub === item.label}
+                  onClick={() => setOpenSub((v) => (v === item.label ? null : item.label))}>
+                  <span className="caret" aria-hidden="true"></span>
+                </button>
+              )}
+            </div>
+            {item.children && openSub === item.label && (
+              <div className="mm-sub">
+                {item.children.map((c) => (
+                  <Link key={c.href + c.label} href={c.href}>{c.label}</Link>
+                ))}
+              </div>
+            )}
+          </div>
         ))}
         <Link href="/rejoindre" className="btn">Rejoindre Eden<span className="arw">→</span></Link>
       </div>

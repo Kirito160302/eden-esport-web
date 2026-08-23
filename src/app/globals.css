@@ -1017,3 +1017,44 @@ main section,.finale{scroll-margin-top:90px}
 .home-partner:hover img{filter:none;opacity:1}
 .home-partner .pt-logo-text{font-family:var(--f-display);font-weight:800;font-size:1.5rem;text-transform:uppercase;color:var(--muted);transition:color .3s}
 .home-partner:hover .pt-logo-text{color:var(--lavender)}
+
+/* =====================================================================
+   MENU — sous-menus déroulants (desktop) + accordéon (mobile)
+   ===================================================================== */
+.nav-item{position:relative;display:flex;align-items:center}
+.nav .nav-item>a{white-space:nowrap;display:inline-flex;align-items:center;gap:.34rem}
+/* petit chevron */
+.caret{width:6px;height:6px;border-right:1.6px solid currentColor;border-bottom:1.6px solid currentColor;transform:rotate(45deg) translateY(-1px);transition:transform .3s;opacity:.65}
+.nav-item.has-menu:hover .caret,.nav-item.has-menu:focus-within .caret{transform:rotate(-135deg) translateY(-1px);opacity:1}
+
+/* panneau */
+.nav-panel{position:absolute;top:100%;left:-.2rem;padding-top:12px;min-width:262px;z-index:120;
+  opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .25s,transform .25s,visibility .25s;pointer-events:none}
+.nav-item.has-menu:hover .nav-panel,.nav-item.has-menu:focus-within .nav-panel{opacity:1;visibility:visible;transform:translateY(0);pointer-events:auto}
+.nav-panel-inner{background:rgba(12,11,20,.96);backdrop-filter:blur(18px) saturate(140%);border:1px solid var(--line-2);
+  border-radius:12px;padding:.5rem;box-shadow:0 30px 60px -24px rgba(0,0,0,.7),0 0 0 1px rgba(125,92,255,.06);
+  display:flex;flex-direction:column;gap:.15rem}
+/* liens du panneau (on neutralise le style des liens de nav) */
+.nav-sub{display:flex !important;flex-direction:column;gap:.15rem;padding:.62rem .8rem !important;border-radius:8px;
+  text-transform:none !important;letter-spacing:0 !important;transition:background .2s}
+.nav-sub::after{display:none !important}
+.nav-sub:hover{background:radial-gradient(circle at 15% 0%,rgba(125,92,255,.22),transparent 75%),var(--surface)}
+.nav-sub-label{font-family:var(--f-display);font-weight:600;font-size:.86rem;color:var(--text);line-height:1.2}
+.nav-sub-desc{font-family:var(--f-body);font-weight:400;font-size:.74rem;letter-spacing:.01em;color:var(--muted);text-transform:none}
+.nav-sub:hover .nav-sub-label{color:var(--lavender)}
+
+/* mobile : accordéon */
+.mm-item{border-bottom:1px solid var(--line)}
+.mm-row{display:flex;align-items:center;justify-content:space-between}
+.mobile-menu .mm-main{flex:1}
+.mm-toggle{width:52px;height:52px;flex:none;background:transparent;border:0;display:grid;place-items:center;color:var(--muted);cursor:pointer}
+.mm-toggle .caret{width:9px;height:9px;border-width:2px}
+.mm-toggle.open .caret{transform:rotate(-135deg) translateY(2px);color:var(--lavender)}
+.mm-sub{display:flex;flex-direction:column;padding:0 0 .8rem .2rem}
+.mm-sub a{font-size:1rem !important;color:var(--muted) !important;padding:.5rem 0 !important;text-transform:none !important;letter-spacing:.01em !important;border:0 !important}
+.mm-sub a:hover{color:var(--lavender) !important}
+
+/* ajustements menu mobile pour l'accordéon */
+.mobile-menu{justify-content:flex-start;padding-top:clamp(5rem,14vh,7rem);overflow-y:auto}
+.mobile-menu .mm-main{border-bottom:0}
+.mobile-menu .btn{font-size:1rem;text-transform:uppercase}
