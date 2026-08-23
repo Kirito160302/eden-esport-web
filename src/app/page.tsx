@@ -21,6 +21,10 @@ export default async function Home() {
     <>
       {/* HERO */}
       <section className="hero" aria-label="Introduction">
+        <video className="hero-video" autoPlay muted loop playsInline preload="none" aria-hidden="true">
+          <source src="/hero.mp4" type="video/mp4" />
+        </video>
+        <div className="hero-veil" aria-hidden="true"></div>
         <div className="hero-glow" aria-hidden="true"></div>
         <canvas id="hero-canvas" aria-hidden="true"></canvas>
         <div className="wrap">
