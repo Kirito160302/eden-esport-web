@@ -80,8 +80,8 @@ export function BoutiqueBrowser({ products }: { products: ShopProduct[] }) {
   return (
     <div className="shop-layout">
       {/* sidebar catégories */}
-      <aside className="shop-side">
-        <div className="shop-side-label">Catégories</div>
+      <aside className="shp-side">
+        <div className="shp-side-label">Catégories</div>
         <button className={"shop-catbtn" + (cat === "all" ? " on" : "")} onClick={() => setCat("all")}>
           Tous les produits <span>{products.length}</span>
         </button>
@@ -108,7 +108,7 @@ export function BoutiqueBrowser({ products }: { products: ShopProduct[] }) {
             </select>
           </label>
         </div>
-        <div className="shop-grid">
+        <div className="shp-grid">
           {list.map((p) => <ShopCard key={p.slug} p={p} />)}
         </div>
       </div>

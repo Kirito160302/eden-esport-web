@@ -54,7 +54,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         </div>
         <div style={{ marginTop: "3rem" }}>
           <SectionHead eyebrow="Vous aimerez aussi" title="Produits associés" />
-          <div className="shop-grid">
+          <div className="shp-grid">
             {suggestions.map((r) => (
               <Link key={r.slug} href={`/boutique/${r.slug}`} className="shop-card" style={{ textDecoration: "none" }}>
                 <div className="shop-card-media"><ProductMedia image={r.image} alt={r.name} />{r.badge && <span className="shop-badge">{r.badge}</span>}</div>

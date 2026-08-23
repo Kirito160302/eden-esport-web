@@ -10,8 +10,9 @@ function openOnKey(fn: () => void) {
 }
 
 /* ---------------- ÉQUIPES ---------------- */
-export function TeamCard({ team }: { team: Team }) {
+export function TeamCard({ team, href }: { team: Team; href?: string }) {
   const [open, setOpen] = useState(false);
+  const target = href ?? `/equipes/${team.slug}`;
   return (
     <>
       <div className={"team-card card-btn " + team.cls} data-cat={team.gameKey} role="button" tabIndex={0}
@@ -37,7 +38,7 @@ export function TeamCard({ team }: { team: Team }) {
           <p className="tmp">Roster en cours de constitution.</p>
         )}
         <div className="modal-actions">
-          <Link href={`/equipes/${team.slug}`} className="btn">Voir la page complète<span className="arw">→</span></Link>
+          <Link href={target} className="btn">Voir la page complète<span className="arw">→</span></Link>
         </div>
       </Modal>
     </>

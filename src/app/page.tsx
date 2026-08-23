@@ -2,6 +2,8 @@ import Link from "next/link";
 import { getTeams, getArticles, getEvents, getProducts } from "@/lib/content";
 import { TeamCard, SoonCard, NewsCard } from "@/components/cards";
 import HomeEffects from "@/components/HomeEffects";
+import PartnerLogo from "@/components/PartnerLogo";
+import { PARTNERS } from "@/lib/partners-data";
 
 const ACTIONS: [string, string][] = [
   ["Compétition", "Des équipes exigeantes qui portent les couleurs d'Eden sur les scènes esport."],
@@ -35,7 +37,7 @@ export default async function Home() {
           <p className="hero-sub">Eden ne construit pas seulement des équipes. Nous bâtissons une vision, une communauté et un héritage — unis par la passion, guidés par la discipline.</p>
           <div className="hero-actions">
             <Link href="/eden" className="btn btn--lg">Découvrir Eden<span className="arw">→</span></Link>
-            <Link href="/equipes" className="btn btn--ghost btn--lg">Nos équipes<span className="arw">→</span></Link>
+            <Link href="/esport" className="btn btn--ghost btn--lg">Nos équipes<span className="arw">→</span></Link>
           </div>
         </div>
         <div className="scroll-ind" aria-hidden="true"><span>Scroll</span><span className="line"></span></div>
@@ -93,7 +95,7 @@ export default async function Home() {
             <p>Des rosters bâtis autour de la discipline et de l&apos;esprit collectif. Chaque équipe Eden porte les mêmes valeurs : exigence, progression et unité.</p>
           </div>
           <div className="teams-grid">
-            {teams.map((t) => <TeamCard key={t.slug} team={t} />)}
+            {teams.map((t) => <TeamCard key={t.slug} team={t} href="/esport" />)}
             <SoonCard />
           </div>
         </div>
@@ -182,7 +184,7 @@ export default async function Home() {
                 <span className="tag tag--gold">Édition officielle</span>
                 <h3>Maillot Eden 2026</h3>
                 <p>Le maillot officiel de la structure. Design signature « Never Give Up », matières techniques et énergie violette.</p>
-                <Link href="/boutique/maillot-eden" className="btn btn--sm">Voir le produit<span className="arw">→</span></Link>
+                <Link href="/boutique/maillot-eden-2026" className="btn btn--sm">Voir le produit<span className="arw">→</span></Link>
               </div>
             </article>
             <div className="shop-side">
@@ -193,7 +195,7 @@ export default async function Home() {
               </Link>
               <Link className="shop-cat reveal d2" href="/boutique">
                 <img className="glyph" src="/symbol.png" alt="" aria-hidden="true" />
-                <div><span className="k">Éditions limitées</span><h4>Accessoires & drops</h4></div>
+                <div><span className="k">Accessoires</span><h4>Casquettes & goodies</h4></div>
                 <span className="more">Voir la collection <span className="arw">→</span></span>
               </Link>
             </div>
@@ -207,16 +209,15 @@ export default async function Home() {
           <div className="section-head section-head--center reveal">
             <p className="eyebrow eyebrow--center eyebrow--gold">Ils construisent Eden</p>
             <h2 style={{ fontSize: "var(--fs-h2)" }}>Nos partenaires</h2>
-            <p>Eden avance entouré de partenaires qui partagent sa vision. Ces emplacements attendent les structures qui écriront cette histoire avec nous.</p>
+            <p>Eden avance entouré de partenaires qui partagent sa vision. Découvrez celles et ceux qui écrivent cette histoire avec nous.</p>
           </div>
           <div className="reveal d1">
-            <div className="partner-cat">
-              <span className="k">Partenaire principal</span>
-              <div className="partner-row p-principal"><div className="p-slot">Emplacement réservé</div><div className="p-slot">Emplacement réservé</div></div>
-            </div>
-            <div className="partner-cat">
-              <span className="k">Partenaires officiels</span>
-              <div className="partner-row p-officiels"><div className="p-slot">Officiel</div><div className="p-slot">Officiel</div><div className="p-slot">Officiel</div><div className="p-slot">Officiel</div></div>
+            <div className="home-partners">
+              {PARTNERS.map((p) => (
+                <Link key={p.name} href="/partenaires" className="home-partner" aria-label={p.name}>
+                  <PartnerLogo name={p.name} logo={p.logo} />
+                </Link>
+              ))}
             </div>
             <div style={{ textAlign: "center", marginTop: "2.4rem" }}>
               <Link href="/partenaires" className="btn btn--gold">Devenir partenaire d&apos;Eden<span className="arw">→</span></Link>
