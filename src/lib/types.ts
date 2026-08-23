@@ -28,12 +28,18 @@ export type Player = {
 export type Event = {
   slug: string;
   title: string;
-  date: string;
-  place: string;
+  date: string;             // affichage, ex: "15 novembre 2026"
+  iso?: string;             // pour le compte à rebours / tri, ex: "2026-11-15T20:00"
+  place: string;            // lieu court, ex: "Metz"
+  address?: string;         // adresse pour la carte, ex: "Parc des Expositions, Metz"
   status: "upcoming" | "past";
+  category?: string;        // Tournoi | LAN | Atelier | Rassemblement | Partenaire
   tag: string;
   description: string;
   program: { time: string; label: string }[];
+  ticketUrl?: string;       // lien billetterie (laisser vide = "à venir")
+  hotels?: { name: string; url: string }[];
+  restaurants?: { name: string; url: string }[];
 };
 
 export type Article = {

@@ -762,3 +762,30 @@ main section,.finale{scroll-margin-top:90px}
 .pl-modal-photo{width:110px;height:140px;flex:none;border:1px solid var(--line-2);border-radius:var(--r);overflow:hidden;display:grid;place-items:center;background:radial-gradient(circle at 50% 25%,rgba(125,92,255,.3),transparent 60%),var(--surface-2)}
 .pl-modal-photo img{width:100%;height:100%;object-fit:cover}
 .pl-socials{margin-top:1.4rem;display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}
+
+/* =====================================================================
+   PAGE ÉVÉNEMENTS
+   ===================================================================== */
+.ev-countdown{display:flex;justify-content:space-between;align-items:center;gap:2rem;flex-wrap:wrap;
+  border:1px solid var(--line-2);background:radial-gradient(circle at 15% 0%,rgba(125,92,255,.16),transparent 55%),linear-gradient(180deg,var(--surface),var(--bg-3));
+  padding:clamp(1.6rem,3vw,2.4rem)}
+.ev-countdown .countdown{margin:0}
+
+/* frise chronologique */
+.ev-timeline{position:relative;margin-top:1.6rem;padding-left:2rem}
+.ev-timeline::before{content:"";position:absolute;left:6px;top:8px;bottom:8px;width:2px;background:linear-gradient(var(--violet),transparent)}
+.ev-tl-item{position:relative;display:block;padding:0 0 1.6rem 0;text-decoration:none}
+.ev-tl-dot{position:absolute;left:calc(-2rem + 1px);top:4px;width:13px;height:13px;border-radius:50%;background:var(--bg);border:2px solid var(--muted-2)}
+.ev-tl-item.up .ev-tl-dot{border-color:var(--violet);box-shadow:0 0 12px rgba(125,92,255,.6)}
+.ev-tl-item.next .ev-tl-dot{background:var(--violet);border-color:var(--violet)}
+.ev-tl-body{border:1px solid var(--line-2);background:var(--surface);padding:1rem 1.2rem;transition:transform .35s,border-color .35s}
+.ev-tl-item:hover .ev-tl-body{transform:translateX(4px);border-color:var(--line-3)}
+.ev-tl-item:not(.up) .ev-tl-body{opacity:.72}
+.ev-tl-date{font-family:var(--f-display);font-weight:600;font-size:.78rem;letter-spacing:.1em;text-transform:uppercase;color:var(--lavender);display:flex;align-items:center;flex-wrap:wrap}
+.ev-tl-body h4{font-size:1.15rem;margin:.3rem 0 .2rem}
+.ev-tl-body p{font-size:.88rem}
+
+/* carte */
+.ev-map{position:relative;aspect-ratio:16/10;border:1px solid var(--line-2);overflow:hidden;background:var(--surface-2)}
+.ev-map iframe{position:absolute;inset:0;width:100%;height:100%;border:0;filter:grayscale(.25) contrast(1.05)}
+@media(max-width:820px){.ev-map{aspect-ratio:16/12}}

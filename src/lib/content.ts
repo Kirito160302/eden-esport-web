@@ -28,8 +28,9 @@ export async function getPlayer(slug: string): Promise<Player | null> {
   return (await getPlayers()).find((p) => p.slug === slug) ?? null;
 }
 
+import { EVENTS } from "./events-data";
 export async function getEvents(): Promise<Event[]> {
-  return (await wp.wpEvents()) ?? demo.DEMO_EVENTS;
+  return EVENTS;
 }
 export async function getEvent(slug: string): Promise<Event | null> {
   return (await getEvents()).find((e) => e.slug === slug) ?? null;

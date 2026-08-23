@@ -156,7 +156,10 @@ export function EventCard({ event }: { event: Event }) {
     <Link className="event-card" data-cat={event.status} href={`/evenements/${event.slug}`} style={{ gridTemplateColumns: ".8fr 1.2fr" }}>
       <div className="event-media"><img src="/symbol.png" alt="" /></div>
       <div className="event-body">
-        <span className={"tag " + (event.status === "upcoming" ? "tag--live" : "")}><span className="dot"></span>{event.tag}</span>
+        <span style={{ display: "flex", gap: ".5rem", flexWrap: "wrap" }}>
+          <span className={"tag " + (event.status === "upcoming" ? "tag--live" : "")}><span className="dot"></span>{event.tag}</span>
+          {event.category && <span className="tag tag--gold">{event.category}</span>}
+        </span>
         <h3>{event.title}</h3>
         <p className="where">{event.date} · {event.place}</p>
         <p>{event.description}</p>
