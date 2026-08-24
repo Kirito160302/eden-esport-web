@@ -182,6 +182,7 @@ export async function wpProducts(): Promise<ShopProduct[] | null> {
       products(first: 100) {
         nodes {
           slug title
+          featuredImage { node { sourceUrl } }
           productFields { category price ancienPrix sizes description badge epuise lienNoltDuProduit imageKind }
         }
       }
@@ -192,13 +193,15 @@ export async function wpProducts(): Promise<ShopProduct[] | null> {
     const f = n.productFields || {};
     const sizes = csv(f.sizes);
     const old = num(f.ancienPrix);
+    // vraie photo (image mise en avant) en priorité, sinon maillot/symbole
+    const photo = n.featuredImage?.node?.sourceUrl;
     return {
       slug: n.slug,
       name: n.title,
       category: one(f.category) || "accessoires",
       price: num(f.price),
       oldPrice: old > 0 ? old : undefined,
-      image: one(f.imageKind) === "jersey" ? "jersey" : "symbol",
+      image: photo || (one(f.imageKind) === "jersey" ? "jersey" : "symbol"),
       sizes: sizes.length ? sizes : ["Unique"],
       description: f.description || "",
       badge: f.badge || undefined,
