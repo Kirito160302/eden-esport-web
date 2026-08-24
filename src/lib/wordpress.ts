@@ -219,19 +219,19 @@ export async function wpPartners(): Promise<Partner[] | null> {
         nodes {
           title
           featuredImage { node { sourceUrl } }
-          partnerFields { url tier description }
+          partnerFields { siteWeb niveau description }
         }
       }
     }`);
   if (!data?.partners?.nodes) return null;
   return data.partners.nodes.map((n) => {
     const f = n.partnerFields || {};
-    const tierRaw = one(f.tier);
+    const tierRaw = one(f.niveau);
     const tier = (["principal", "officiel", "technique"].includes(tierRaw) ? tierRaw : "officiel") as Partner["tier"];
     return {
       name: n.title,
       logo: n.featuredImage?.node?.sourceUrl || "",
-      url: f.url || "",
+      url: f.siteWeb || "",
       tier,
       description: f.description || "",
     };
