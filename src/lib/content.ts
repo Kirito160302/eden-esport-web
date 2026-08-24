@@ -9,8 +9,10 @@ import { PRODUCTS, type ShopProduct } from "./shop-data";
 import { PARTNERS, type Partner } from "./partners-data";
 import { EVENTS } from "./events-data";
 
-async function rawTeams(): Promise<Team[]> { const w = await wp.wpTeams(); return w && w.length ? w : demo.DEMO_TEAMS; }
-async function rawPlayers(): Promise<Player[]> { const w = await wp.wpPlayers(); return w && w.length ? w : demo.DEMO_PLAYERS; }
+// Équipes & joueurs : gérés en local pour l'instant (la page Esport riche fait
+// référence). Pour les repasser sur WordPress plus tard, réactive les lignes wp.
+async function rawTeams(): Promise<Team[]> { return demo.DEMO_TEAMS; }
+async function rawPlayers(): Promise<Player[]> { return demo.DEMO_PLAYERS; }
 
 export async function getTeams(): Promise<Team[]> {
   const [teams, players] = await Promise.all([rawTeams(), rawPlayers()]);

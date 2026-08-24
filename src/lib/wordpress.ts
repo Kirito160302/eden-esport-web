@@ -14,7 +14,13 @@ import type { Partner } from "./partners-data";
 //  de configuration WordPress (voir GUIDE-WORDPRESS-CMS.md).
 // ============================================================
 
-const API = process.env.WORDPRESS_API_URL;
+// Accepte plusieurs noms de variable (au cas où) + nettoie les espaces.
+const API = (
+  process.env.WORDPRESS_API_URL ||
+  process.env.URL_API_WORDPRESS ||
+  process.env.NEXT_PUBLIC_WORDPRESS_API_URL ||
+  ""
+).trim();
 
 export async function gql<T>(query: string, variables?: Record<string, unknown>): Promise<T | null> {
   if (!API) return null;
