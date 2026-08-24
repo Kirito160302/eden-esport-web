@@ -4,10 +4,13 @@
 
 import * as demo from "./demo-data";
 import * as wp from "./wordpress";
-import type { Team, Player, Event, Article, Product } from "./types";
+import type { Team, Player, Event, Article } from "./types";
+import { PRODUCTS, type ShopProduct } from "./shop-data";
+import { PARTNERS, type Partner } from "./partners-data";
+import { EVENTS } from "./events-data";
 
-async function rawTeams(): Promise<Team[]> { return (await wp.wpTeams()) ?? demo.DEMO_TEAMS; }
-async function rawPlayers(): Promise<Player[]> { return (await wp.wpPlayers()) ?? demo.DEMO_PLAYERS; }
+async function rawTeams(): Promise<Team[]> { const w = await wp.wpTeams(); return w && w.length ? w : demo.DEMO_TEAMS; }
+async function rawPlayers(): Promise<Player[]> { const w = await wp.wpPlayers(); return w && w.length ? w : demo.DEMO_PLAYERS; }
 
 export async function getTeams(): Promise<Team[]> {
   const [teams, players] = await Promise.all([rawTeams(), rawPlayers()]);
@@ -28,9 +31,9 @@ export async function getPlayer(slug: string): Promise<Player | null> {
   return (await getPlayers()).find((p) => p.slug === slug) ?? null;
 }
 
-import { EVENTS } from "./events-data";
 export async function getEvents(): Promise<Event[]> {
-  return EVENTS;
+  const wpEv = await wp.wpEvents();
+  return wpEv && wpEv.length ? wpEv : EVENTS;
 }
 export async function getEvent(slug: string): Promise<Event | null> {
   return (await getEvents()).find((e) => e.slug === slug) ?? null;
@@ -45,11 +48,17 @@ export async function getArticle(slug: string): Promise<Article | null> {
   return (await getArticles()).find((a) => a.slug === slug) ?? null;
 }
 
-export async function getProducts(): Promise<Product[]> {
-  return (await wp.wpProducts()) ?? demo.DEMO_PRODUCTS;
+export async function getProducts(): Promise<ShopProduct[]> {
+  const wpProds = await wp.wpProducts();
+  return wpProds && wpProds.length ? wpProds : PRODUCTS;
 }
-export async function getProduct(slug: string): Promise<Product | null> {
+export async function getProduct(slug: string): Promise<ShopProduct | null> {
   return (await getProducts()).find((p) => p.slug === slug) ?? null;
+}
+
+export async function getPartners(): Promise<Partner[]> {
+  const wpP = await wp.wpPartners();
+  return wpP && wpP.length ? wpP : PARTNERS;
 }
 
 // Construit des options de filtre à partir des données réelles (label + valeur).

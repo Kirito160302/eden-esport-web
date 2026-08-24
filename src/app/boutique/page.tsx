@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { PageHero } from "@/components/ui";
 import { BoutiqueBrowser } from "@/components/shop";
-import { PRODUCTS, SHOP } from "@/lib/shop-data";
+import { SHOP } from "@/lib/shop-data";
+import { getProducts } from "@/lib/content";
 
 export const metadata: Metadata = { title: "Boutique" };
 
-export default function BoutiquePage() {
+export default async function BoutiquePage() {
+  const products = await getProducts();
   return (
     <>
       <PageHero
@@ -27,7 +29,7 @@ export default function BoutiquePage() {
       </div></div>
 
       <section className="section"><div className="wrap">
-        <BoutiqueBrowser products={PRODUCTS} />
+        <BoutiqueBrowser products={products} />
         <p className="tmp" style={{ marginTop: "1.6rem" }}>* Prix indicatifs — la commande et le paiement se finalisent sur notre boutique officielle (Nolt).</p>
       </div></section>
     </>

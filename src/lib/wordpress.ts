@@ -1,7 +1,18 @@
-import type { Article, Team, Player, Event, Product } from "./types";
+import type { Article, Team, Player, Event } from "./types";
+import type { ShopProduct } from "./shop-data";
+import type { Partner } from "./partners-data";
 
-// Passerelle vers le back-office WordPress (WPGraphQL) sur IONOS.
-// Si WORDPRESS_API_URL n'est pas défini → renvoie null → le site retombe sur les données de démo.
+// ============================================================
+//  PASSERELLE WORDPRESS (WPGraphQL + ACF) — back-office IONOS
+//  ------------------------------------------------------------
+//  Définis la variable d'environnement WORDPRESS_API_URL
+//  (ex : https://admin.edenesport.fr/graphql) dans Vercel.
+//  Si elle est absente OU si une requête échoue → on renvoie
+//  null → le site retombe automatiquement sur les données
+//  locales (rien ne casse).
+//  Les noms de champs ci-dessous DOIVENT correspondre au guide
+//  de configuration WordPress (voir GUIDE-WORDPRESS-CMS.md).
+// ============================================================
 
 const API = process.env.WORDPRESS_API_URL;
 
@@ -12,7 +23,7 @@ export async function gql<T>(query: string, variables?: Record<string, unknown>)
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query, variables }),
-      next: { revalidate: 60 },
+      next: { revalidate: 60 }, // cache 60 s (ISR)
     });
     if (!res.ok) return null;
     const json = await res.json();
@@ -24,11 +35,27 @@ export async function gql<T>(query: string, variables?: Record<string, unknown>)
   }
 }
 
+/* ----------------------------- utils ----------------------------- */
 const strip = (html: string) => (html || "").replace(/<[^>]+>/g, "").trim();
 const frDate = (d: string) => {
   try { return new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }); }
   catch { return d; }
 };
+// "HH:MM | Libellé" (une ligne par entrée)
+const parsePairs = (txt: string): { time: string; label: string }[] =>
+  (txt || "").split("\n").map((l) => l.trim()).filter(Boolean).map((line) => {
+    const i = line.indexOf("|");
+    return i === -1 ? { time: "", label: line } : { time: line.slice(0, i).trim(), label: line.slice(i + 1).trim() };
+  });
+// "Nom | https://..." (une ligne par entrée)
+const parseLinks = (txt: string): { name: string; url: string }[] =>
+  (txt || "").split("\n").map((l) => l.trim()).filter(Boolean).map((line) => {
+    const i = line.indexOf("|");
+    return i === -1 ? { name: line, url: "#" } : { name: line.slice(0, i).trim(), url: line.slice(i + 1).trim() };
+  });
+const csv = (txt: string): string[] => (txt || "").split(",").map((s) => s.trim()).filter(Boolean);
+// Les listes déroulantes ACF remontent parfois en tableau (["news"]) → on prend la 1re valeur.
+const one = (v: any): string => (Array.isArray(v) ? (v[0] ?? "") : (v ?? "")) as string;
 
 export function slugifyGame(game: string): string {
   const g = (game || "").toLowerCase();
@@ -37,12 +64,16 @@ export function slugifyGame(game: string): string {
   return g.replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "autre";
 }
 
-// --- ARTICLES : articles WordPress natifs ---
+/* =============================== ARTICLES (posts natifs) =============================== */
 export async function wpArticles(): Promise<Article[] | null> {
   const data = await gql<{ posts: { nodes: any[] } }>(`
     query Articles {
-      posts(first: 24, where: { status: PUBLISH }) {
-        nodes { slug title date excerpt content categories { nodes { name } } }
+      posts(first: 50, where: { status: PUBLISH }) {
+        nodes {
+          slug title date excerpt content
+          categories { nodes { name } }
+          articleFields { type }
+        }
       }
     }`);
   if (!data?.posts?.nodes) return null;
@@ -53,11 +84,11 @@ export async function wpArticles(): Promise<Article[] | null> {
     category: n.categories?.nodes?.[0]?.name || "Actualité",
     excerpt: strip(n.excerpt),
     bodyHtml: n.content || "",
-    kind: "news" as const,
+    kind: (one(n.articleFields?.type) === "blog" ? "blog" : "news") as "news" | "blog",
   }));
 }
 
-// --- ÉQUIPES (le roster est rattaché dans content.ts) ---
+/* =============================== ÉQUIPES =============================== */
 export async function wpTeams(): Promise<Team[] | null> {
   const data = await gql<{ teams: { nodes: any[] } }>(`
     query Teams {
@@ -70,25 +101,20 @@ export async function wpTeams(): Promise<Team[] | null> {
     const game = n.teamFields?.game || "";
     const gameKey = slugifyGame(game);
     return {
-      slug: n.slug,
-      name: n.title,
-      game,
-      gameKey,
-      cls: gameKey,
+      slug: n.slug, name: n.title, game, gameKey, cls: gameKey,
       status: n.teamFields?.status || "",
       description: n.teamFields?.description || "",
-      roster: [],
-      staff: [],
+      roster: [], staff: [],
     };
   });
 }
 
-// --- JOUEURS (teamName / teamSlug complétés dans content.ts) ---
+/* =============================== JOUEURS =============================== */
 export async function wpPlayers(): Promise<Player[] | null> {
   const data = await gql<{ players: { nodes: any[] } }>(`
     query Players {
       players(first: 100) {
-        nodes { slug title playerFields { role game teamSlug fullName } }
+        nodes { slug title playerFields { role game fullName } }
       }
     }`);
   if (!data?.players?.nodes) return null;
@@ -96,67 +122,107 @@ export async function wpPlayers(): Promise<Player[] | null> {
     const game = n.playerFields?.game || "";
     const title = n.title || "?";
     return {
-      slug: n.slug,
-      pseudo: title,
+      slug: n.slug, pseudo: title,
       name: n.playerFields?.fullName || undefined,
       role: n.playerFields?.role || "",
-      game,
-      gameKey: slugifyGame(game),
-      teamName: "",
-      teamSlug: "",
+      game, gameKey: slugifyGame(game),
+      teamName: "", teamSlug: "",
       initials: title.charAt(0).toUpperCase(),
       bio: "Profil à compléter via le back-office.",
     };
   });
 }
 
-// --- ÉVÉNEMENTS ---
+/* =============================== ÉVÉNEMENTS =============================== */
 export async function wpEvents(): Promise<Event[] | null> {
   const data = await gql<{ events: { nodes: any[] } }>(`
     query Events {
       events(first: 50) {
-        nodes { slug title eventFields { eventDate place eventStatus tag description program } }
+        nodes {
+          slug title
+          eventFields {
+            eventDate iso place address category eventStatus tag description
+            program ticketUrl hotels restaurants
+          }
+        }
       }
     }`);
   if (!data?.events?.nodes) return null;
   return data.events.nodes.map((n) => {
     const f = n.eventFields || {};
-    const program = (f.program || "").split("\n").map((l: string) => l.trim()).filter(Boolean).map((line: string) => {
-      const idx = line.indexOf("|");
-      return idx === -1 ? { time: "", label: line } : { time: line.slice(0, idx).trim(), label: line.slice(idx + 1).trim() };
-    });
     return {
       slug: n.slug,
       title: n.title,
       date: f.eventDate || "",
+      iso: f.iso || undefined,
       place: f.place || "",
-      status: (f.eventStatus === "past" ? "past" : "upcoming") as "upcoming" | "past",
+      address: f.address || undefined,
+      status: (one(f.eventStatus) === "past" ? "past" : "upcoming") as "upcoming" | "past",
+      category: one(f.category) || undefined,
       tag: f.tag || "",
       description: f.description || "",
-      program,
+      program: parsePairs(f.program),
+      ticketUrl: f.ticketUrl || undefined,
+      hotels: f.hotels ? parseLinks(f.hotels) : undefined,
+      restaurants: f.restaurants ? parseLinks(f.restaurants) : undefined,
     };
   });
 }
 
-// --- PRODUITS ---
-export async function wpProducts(): Promise<Product[] | null> {
+/* =============================== BOUTIQUE (produits) =============================== */
+export async function wpProducts(): Promise<ShopProduct[] | null> {
   const data = await gql<{ products: { nodes: any[] } }>(`
     query Products {
-      products(first: 50) {
-        nodes { slug title productFields { category price sizes imageKind description } }
+      products(first: 100) {
+        nodes {
+          slug title
+          featuredImage { node { sourceUrl } }
+          productFields { category price oldPrice sizes description badge soldOut buyUrl }
+        }
       }
     }`);
   if (!data?.products?.nodes) return null;
   return data.products.nodes.map((n) => {
     const f = n.productFields || {};
-    const sizes = (f.sizes || "").split(",").map((s: string) => s.trim()).filter(Boolean);
+    const sizes = csv(f.sizes);
     return {
       slug: n.slug,
       name: n.title,
-      category: f.category || "Boutique",
-      price: f.price || "",
-      image: (f.imageKind === "jersey" ? "jersey" : "symbol") as "jersey" | "symbol",
+      category: one(f.category) || "accessoires",
+      price: Number(f.price) || 0,
+      oldPrice: f.oldPrice ? Number(f.oldPrice) : undefined,
+      image: n.featuredImage?.node?.sourceUrl || "symbol",
       sizes: sizes.length ? sizes : ["Unique"],
+      description: f.description || "",
+      badge: f.badge || undefined,
+      soldOut: !!f.soldOut,
+      buyUrl: f.buyUrl || undefined,
+    };
+  });
+}
+
+/* =============================== PARTENAIRES =============================== */
+export async function wpPartners(): Promise<Partner[] | null> {
+  const data = await gql<{ partners: { nodes: any[] } }>(`
+    query Partners {
+      partners(first: 50) {
+        nodes {
+          title
+          featuredImage { node { sourceUrl } }
+          partnerFields { url tier description }
+        }
+      }
+    }`);
+  if (!data?.partners?.nodes) return null;
+  return data.partners.nodes.map((n) => {
+    const f = n.partnerFields || {};
+    const tierRaw = one(f.tier);
+    const tier = (["principal", "officiel", "technique"].includes(tierRaw) ? tierRaw : "officiel") as Partner["tier"];
+    return {
+      name: n.title,
+      logo: n.featuredImage?.node?.sourceUrl || "",
+      url: f.url || "",
+      tier,
       description: f.description || "",
     };
   });

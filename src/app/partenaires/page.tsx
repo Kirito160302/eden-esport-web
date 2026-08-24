@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHero, SectionHead } from "@/components/ui";
-import { PARTNERS } from "@/lib/partners-data";
+import { getPartners } from "@/lib/content";
 import PartnerLogo from "@/components/PartnerLogo";
 
 export const metadata: Metadata = { title: "Partenaires" };
@@ -12,7 +12,8 @@ const tierLabel: Record<string, string> = {
   technique: "Partenaire technique",
 };
 
-export default function PartenairesPage() {
+export default async function PartenairesPage() {
+  const PARTNERS = await getPartners();
   // le bandeau défile en boucle : on double la liste pour un défilement sans couture
   const marquee = [...PARTNERS, ...PARTNERS, ...PARTNERS, ...PARTNERS];
 

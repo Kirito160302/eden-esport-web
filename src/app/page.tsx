@@ -1,9 +1,8 @@
 import Link from "next/link";
-import { getTeams, getArticles, getEvents, getProducts } from "@/lib/content";
+import { getTeams, getArticles, getEvents, getPartners } from "@/lib/content";
 import { TeamCard, SoonCard, NewsCard } from "@/components/cards";
 import HomeEffects from "@/components/HomeEffects";
 import PartnerLogo from "@/components/PartnerLogo";
-import { PARTNERS } from "@/lib/partners-data";
 
 const ACTIONS: [string, string][] = [
   ["Compétition", "Des équipes exigeantes qui portent les couleurs d'Eden sur les scènes esport."],
@@ -15,8 +14,7 @@ const ACTIONS: [string, string][] = [
 ];
 
 export default async function Home() {
-  const [teams, news, events] = await Promise.all([getTeams(), getArticles("news"), getEvents()]);
-  await getProducts();
+  const [teams, news, events, partners] = await Promise.all([getTeams(), getArticles("news"), getEvents(), getPartners()]);
   const evt = events.find((e) => e.status === "upcoming") ?? events[0];
 
   return (
@@ -213,7 +211,7 @@ export default async function Home() {
           </div>
           <div className="reveal d1">
             <div className="home-partners">
-              {PARTNERS.map((p) => (
+              {partners.map((p) => (
                 <Link key={p.name} href="/partenaires" className="home-partner" aria-label={p.name}>
                   <PartnerLogo name={p.name} logo={p.logo} />
                 </Link>

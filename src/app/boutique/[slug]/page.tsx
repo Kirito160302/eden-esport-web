@@ -3,25 +3,26 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumb, SectionHead } from "@/components/ui";
 import { ProductMedia, ProductBuy } from "@/components/shop";
-import { PRODUCTS } from "@/lib/shop-data";
+import { getProducts, getProduct } from "@/lib/content";
 
 const euro = (n: number) => n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" }).replace(",00", "");
 
-export function generateStaticParams() {
-  return PRODUCTS.map((p) => ({ slug: p.slug }));
+export async function generateStaticParams() {
+  return (await getProducts()).map((p) => ({ slug: p.slug }));
 }
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const p = PRODUCTS.find((x) => x.slug === slug);
+  const p = await getProduct(slug);
   return { title: p ? p.name : "Produit" };
 }
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const p = PRODUCTS.find((x) => x.slug === slug);
+  const p = await getProduct(slug);
   if (!p) notFound();
-  const related = PRODUCTS.filter((x) => x.slug !== slug && x.category === p.category).slice(0, 3);
-  const fallback = PRODUCTS.filter((x) => x.slug !== slug).slice(0, 3);
+  const all = await getProducts();
+  const related = all.filter((x) => x.slug !== slug && x.category === p.category).slice(0, 3);
+  const fallback = all.filter((x) => x.slug !== slug).slice(0, 3);
   const suggestions = related.length ? related : fallback;
 
   return (
