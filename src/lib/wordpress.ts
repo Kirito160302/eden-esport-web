@@ -147,8 +147,8 @@ export async function wpEvents(): Promise<Event[] | null> {
         nodes {
           slug title
           eventFields {
-            eventDate iso place address category eventStatus tag description
-            program ticketUrl hotels restaurants
+            eventDate dateIso place adresse categorie eventStatus tag description
+            program lienBilleterie hotels restaurants
           }
         }
       }
@@ -160,15 +160,15 @@ export async function wpEvents(): Promise<Event[] | null> {
       slug: n.slug,
       title: n.title,
       date: f.eventDate || "",
-      iso: f.iso || undefined,
+      iso: f.dateIso || undefined,
       place: f.place || "",
-      address: f.address || undefined,
+      address: f.adresse || undefined,
       status: (one(f.eventStatus) === "past" ? "past" : "upcoming") as "upcoming" | "past",
-      category: one(f.category) || undefined,
+      category: one(f.categorie) || undefined,
       tag: f.tag || "",
       description: f.description || "",
       program: parsePairs(f.program),
-      ticketUrl: f.ticketUrl || undefined,
+      ticketUrl: f.lienBilleterie || undefined,
       hotels: f.hotels ? parseLinks(f.hotels) : undefined,
       restaurants: f.restaurants ? parseLinks(f.restaurants) : undefined,
     };
@@ -182,27 +182,28 @@ export async function wpProducts(): Promise<ShopProduct[] | null> {
       products(first: 100) {
         nodes {
           slug title
-          featuredImage { node { sourceUrl } }
-          productFields { category price oldPrice sizes description badge soldOut buyUrl }
+          productFields { category price ancienPrix sizes description badge epuise lienNoltDuProduit imageKind }
         }
       }
     }`);
   if (!data?.products?.nodes) return null;
+  const num = (v: any) => parseFloat(String(v ?? "").replace(",", ".")) || 0;
   return data.products.nodes.map((n) => {
     const f = n.productFields || {};
     const sizes = csv(f.sizes);
+    const old = num(f.ancienPrix);
     return {
       slug: n.slug,
       name: n.title,
       category: one(f.category) || "accessoires",
-      price: Number(f.price) || 0,
-      oldPrice: f.oldPrice ? Number(f.oldPrice) : undefined,
-      image: n.featuredImage?.node?.sourceUrl || "symbol",
+      price: num(f.price),
+      oldPrice: old > 0 ? old : undefined,
+      image: one(f.imageKind) === "jersey" ? "jersey" : "symbol",
       sizes: sizes.length ? sizes : ["Unique"],
       description: f.description || "",
       badge: f.badge || undefined,
-      soldOut: !!f.soldOut,
-      buyUrl: f.buyUrl || undefined,
+      soldOut: !!f.epuise,
+      buyUrl: f.lienNoltDuProduit || undefined,
     };
   });
 }
