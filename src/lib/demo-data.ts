@@ -117,12 +117,14 @@ export const VALUES: [string, string][] = [
 ];
 
 export const FAQ: [string, string][] = [
-  ["Qu'est-ce qu'Eden Esport ?", "Une structure esport française qui construit des équipes compétitives, organise des événements et mène des actions auprès des jeunes."],
-  ["Comment rejoindre une équipe Eden ?", "Rendez-vous sur la page Rejoindre pour postuler comme joueur, coach, manager ou staff."],
-  ["Eden organise-t-il des événements pour les collectivités ?", "Oui. Nous concevons des tournois, LAN et animations clés en main pour collectivités, entreprises et associations."],
-  ["Proposez-vous des ateliers pour les jeunes ?", "Oui, des ateliers de découverte, de création de contenu et de citoyenneté numérique."],
-  ["Comment devenir partenaire ?", "Contactez-nous via la page Partenaires ou le formulaire de contact."],
-  ["La boutique est-elle ouverte ?", "La boutique est en préparation. Les prix affichés sont indicatifs."],
+  ["Qu'est-ce qu'Eden Esport ?", "Eden Esport est une association esport française (loi 1901) basée à Coutras, en Gironde. Nous construisons des équipes compétitives, organisons des événements et menons des actions auprès des jeunes autour du jeu vidéo."],
+  ["Sur quels jeux Eden est-il présent ?", "Nos sections compétitives évoluent sur League of Legends et Valorant. Retrouve nos équipes, joueurs et résultats sur la page Esport."],
+  ["Comment rejoindre Eden ?", "Rendez-vous sur la page « Rejoindre » pour postuler comme joueur, coach, manager, staff, créateur de contenu ou bénévole. On revient vers toi rapidement."],
+  ["Eden organise-t-il des événements pour les collectivités et les entreprises ?", "Oui. Nous concevons des tournois, LAN et animations clés en main pour les collectivités, les entreprises et les associations. Écris-nous via la page Contact pour en discuter."],
+  ["Proposez-vous des ateliers pour les jeunes ?", "Oui : des ateliers de découverte de l'esport, de création de contenu et de citoyenneté numérique, dans une démarche de médiation et de transmission."],
+  ["Comment commander sur la boutique ?", "La boutique du site est une vitrine : tu composes ta sélection, puis tu es redirigé vers notre boutique officielle partenaire (Nolt) pour finaliser la commande, le paiement et la livraison en toute sécurité."],
+  ["Comment devenir partenaire d'Eden ?", "Rendez-vous sur la page « Partenaires » puis clique sur « Devenir partenaire », ou contacte-nous directement. On construit ensemble un dispositif adapté à tes objectifs."],
+  ["Où est basée l'association et où intervenez-vous ?", "Notre siège est à Coutras (Gironde). Nous intervenons partout en France pour nos événements et nos actions."],
 ];
 
 export const LEGAL: Record<string, { title: string; bodyHtml: string }> = {
