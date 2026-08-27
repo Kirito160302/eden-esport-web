@@ -4,23 +4,24 @@ import { PageHero } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Notre équipe" };
 
-// [nom, rôle]
-const BUREAU: [string, string][] = [
-  ["Enzo « Kirito » Gomez", "Président"],
-  ["Sébastien Kroner", "Vice-président"],
-  ["Romaric « Roro » Malapeyre", "Vice-président"],
-  ["Marie-Laure Richard", "Secrétaire"],
-  ["Poste ouvert", "Trésorier"],
+type Member = { name: string; role: string; img?: string };
+
+const BUREAU: Member[] = [
+  { name: "Enzo « Kirito » Gomez", role: "Président", img: "/team/kirito.jpg" },
+  { name: "Sébastien Kroner", role: "Vice-président" },
+  { name: "Romaric « Roro » Malapeyre", role: "Vice-président" },
+  { name: "Marie-Laure Richard", role: "Secrétaire" },
+  { name: "Poste ouvert", role: "Trésorier" },
 ];
 
-const POLES: [string, string][] = [
-  ["Luc Dinghin", "Responsable Esport"],
-  ["Raenavia", "Responsable League of Legends"],
-  ["Popy", "Responsable Valorant"],
-  ["Romaric Malapeyre", "Responsable Académie"],
-  ["Romaric Malapeyre", "Intendant Esport"],
-  ["Enzo Gomez", "Responsable Événementiel"],
-  ["Poste ouvert", "Community Manager"],
+const POLES: Member[] = [
+  { name: "Luc Dinghin", role: "Responsable Esport" },
+  { name: "Raenavia", role: "Responsable League of Legends" },
+  { name: "Popy", role: "Responsable Valorant" },
+  { name: "Romaric Malapeyre", role: "Responsable Académie" },
+  { name: "Romaric Malapeyre", role: "Intendant Esport" },
+  { name: "Enzo Gomez", role: "Responsable Événementiel", img: "/team/kirito.jpg" },
+  { name: "Poste ouvert", role: "Community Manager" },
 ];
 
 function initial(name: string): string {
@@ -29,11 +30,13 @@ function initial(name: string): string {
   return (m ? m[0] : "E").toUpperCase();
 }
 
-function Card([name, role]: [string, string], i: number) {
+function Card({ name, role, img }: Member, i: number) {
   const open = name === "Poste ouvert";
   return (
     <div className={"player-card" + (open ? " is-open" : "")} key={role + i}>
-      <div className="player-avatar"><span className="ini">{initial(name)}</span></div>
+      <div className="player-avatar">
+        {img ? <img src={img} alt={name} /> : <span className="ini">{initial(name)}</span>}
+      </div>
       <div className="pc-body">
         <div className="pseudo">{name}</div>
         <div className="name">{role}</div>
