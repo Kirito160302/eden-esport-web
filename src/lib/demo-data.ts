@@ -191,7 +191,7 @@ Contact : <a href="mailto:eden.esport.contact@gmail.com">eden.esport.contact@gma
 <p>À ce jour, le site <strong>n'utilise pas de cookies publicitaires ni de traceurs tiers</strong>.</p>
 
 <h2>Mesure d'audience</h2>
-<p>Si un outil de mesure d'audience (par exemple Google Analytics) est ajouté à l'avenir, cette page sera mise à jour et votre consentement sera recueilli le cas échéant.</p>
+<p>Nous utilisons <strong>Vercel Analytics</strong>, une solution de mesure d'audience <strong>respectueuse de la vie privée et sans cookie</strong> : elle comptabilise les visites de façon anonyme, sans suivre les visiteurs entre les sites et sans stocker de données personnelles identifiantes. Aucun consentement préalable n'est donc requis pour cette mesure.</p>
 
 <h2>Gérer le stockage</h2>
 <p>Vous pouvez à tout moment vider le stockage local et les cookies depuis les réglages de votre navigateur (section « Confidentialité » ou « Données de site »).</p>`,
