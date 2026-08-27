@@ -1062,3 +1062,7 @@ main section,.finale{scroll-margin-top:90px}
 /* formulaires — état erreur + bouton en cours d'envoi */
 .form-err{border-color:rgba(255,110,90,.4);background:rgba(255,110,90,.08);color:#ffb3a6}
 .form .btn:disabled{opacity:.6;cursor:default}
+
+/* Notre équipe — carte "poste ouvert" */
+.player-card.is-open{opacity:.62}
+.player-card.is-open .ini{color:var(--muted-2)}
