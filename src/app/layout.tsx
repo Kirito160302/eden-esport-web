@@ -6,7 +6,7 @@ import Effects from "@/components/Effects";
 import { CartProvider } from "@/components/CartProvider";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://eden-esport.fr"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://edenesport.fr"),
   title: { default: "EDEN ESPORT", template: "%s · EDEN ESPORT" },
   description:
     "Site officiel d'Eden Esport — structure esport française. We do not only build teams. We build a legacy.",
@@ -43,8 +43,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               "@type": "SportsOrganization",
               name: "Eden Esport",
               sport: "Esports",
-              url: process.env.NEXT_PUBLIC_SITE_URL || "https://eden-esport.fr",
-              logo: (process.env.NEXT_PUBLIC_SITE_URL || "https://eden-esport.fr") + "/symbol.png",
+              url: process.env.NEXT_PUBLIC_SITE_URL || "https://edenesport.fr",
+              logo: (process.env.NEXT_PUBLIC_SITE_URL || "https://edenesport.fr") + "/symbol.png",
               slogan: "We do not only build teams. We build a legacy.",
               areaServed: "FR",
             }),

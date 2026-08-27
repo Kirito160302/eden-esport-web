@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { getTeams, getPlayers, getEvents, getArticles, getProducts } from "@/lib/content";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const base = process.env.NEXT_PUBLIC_SITE_URL || "https://eden-esport.fr";
+  const base = process.env.NEXT_PUBLIC_SITE_URL || "https://edenesport.fr";
 
   const staticPaths = [
     "", "/eden", "/esport", "/equipes", "/joueurs", "/evenements", "/actions",

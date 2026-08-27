@@ -19,10 +19,10 @@ export default function Footer() {
             </Link>
             <p>Structure esport française. Nous ne construisons pas seulement des équipes — nous bâtissons un héritage.</p>
             <div className="socials" aria-label="Réseaux sociaux">
-              <a href="#" aria-label="X / Twitter"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 2H22l-7 8 8.3 12h-6.5l-5-6.6L5 22H2l7.5-8.6L1.5 2H8l4.6 6.1L18.9 2Zm-1.1 18h1.7L7.3 4H5.5l12.3 16Z" /></svg></a>
-              <a href="#" aria-label="Instagram"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" /></svg></a>
-              <a href="#" aria-label="Twitch"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 3 3 7v12h4v2h3l2-2h3l5-5V3H4Zm16 8-3 3h-4l-2 2v-2H7V5h13v6Z" /><path d="M15 7h2v4h-2zM10 7h2v4h-2z" /></svg></a>
-              <a href="#" aria-label="Discord"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.5 5.5A16 16 0 0 0 15.6 4l-.3.5A13 13 0 0 1 18 5.6a13.5 13.5 0 0 0-12 0 13 13 0 0 1 2.7-1.1L8.4 4A16 16 0 0 0 4.5 5.5C2.3 9 1.7 12.4 2 15.8A16 16 0 0 0 6.9 18l.6-.9a10 10 0 0 1-1.6-.8l.4-.3a11.5 11.5 0 0 0 9.4 0l.4.3a10 10 0 0 1-1.6.8l.6.9A16 16 0 0 0 22 15.8c.4-3.9-.6-7.3-2.5-10.3ZM9 14c-.8 0-1.4-.7-1.4-1.6S8.2 10.8 9 10.8s1.4.7 1.4 1.6S9.8 14 9 14Zm6 0c-.8 0-1.4-.7-1.4-1.6s.6-1.6 1.4-1.6 1.4.7 1.4 1.6S15.8 14 15 14Z" /></svg></a>
+              <a href="https://x.com/EdenEsport01" target="_blank" rel="noopener noreferrer" aria-label="X / Twitter"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 2H22l-7 8 8.3 12h-6.5l-5-6.6L5 22H2l7.5-8.6L1.5 2H8l4.6 6.1L18.9 2Zm-1.1 18h1.7L7.3 4H5.5l12.3 16Z" /></svg></a>
+              <a href="https://www.instagram.com/eden_esport/" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" /></svg></a>
+              <a href="https://www.twitch.tv/edenesport" target="_blank" rel="noopener noreferrer" aria-label="Twitch"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 3 3 7v12h4v2h3l2-2h3l5-5V3H4Zm16 8-3 3h-4l-2 2v-2H7V5h13v6Z" /><path d="M15 7h2v4h-2zM10 7h2v4h-2z" /></svg></a>
+              <a href="https://www.youtube.com/@Eden-Esport" target="_blank" rel="noopener noreferrer" aria-label="YouTube"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M23 12s0-3.4-.4-5a2.6 2.6 0 0 0-1.8-1.9C19 4.8 12 4.8 12 4.8s-7 0-8.8.3A2.6 2.6 0 0 0 1.4 7C1 8.6 1 12 1 12s0 3.4.4 5a2.6 2.6 0 0 0 1.8 1.9c1.8.3 8.8.3 8.8.3s7 0 8.8-.3a2.6 2.6 0 0 0 1.8-1.9c.4-1.6.4-5 .4-5ZM9.8 15.3V8.7l5.7 3.3-5.7 3.3Z" /></svg></a>
             </div>
           </div>
           {COLS.map((c) => (
