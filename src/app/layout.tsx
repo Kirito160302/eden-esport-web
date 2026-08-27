@@ -18,7 +18,10 @@ export const metadata: Metadata = {
     locale: "fr_FR",
   },
   twitter: { card: "summary_large_image", title: "EDEN ESPORT", images: ["/og-image.png"] },
-  icons: { icon: "/symbol.png" },
+  icons: {
+    icon: [{ url: "/favicon.png", type: "image/png" }, { url: "/favicon-32.png", sizes: "32x32", type: "image/png" }],
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = { themeColor: "#06060B" };
