@@ -13,20 +13,20 @@ export default function ContactPage() {
         lead="Partenariat, événement, atelier, consulting, recrutement ou presse : dites-nous tout."
       />
       <section className="section"><div className="wrap grid-2" style={{ gridTemplateColumns: "1.4fr 1fr", alignItems: "start" }}>
-        <DemoForm submitLabel="Envoyer" okText="Merci ! Votre message a bien été envoyé (démo). Nous vous répondons rapidement.">
+        <DemoForm submitLabel="Envoyer" subject="Nouveau message — Contact Eden Esport" okText="Merci ! Votre message a bien été envoyé. Nous vous répondons rapidement.">
           <div className="row">
-            <div className="field"><label>Prénom</label><input type="text" required /></div>
-            <div className="field"><label>Nom</label><input type="text" required /></div>
+            <div className="field"><label>Prénom</label><input type="text" name="Prénom" required /></div>
+            <div className="field"><label>Nom</label><input type="text" name="Nom" required /></div>
           </div>
           <div className="row">
-            <div className="field"><label>Email</label><input type="email" required /></div>
-            <div className="field"><label>Téléphone</label><input type="tel" /></div>
+            <div className="field"><label>Email</label><input type="email" name="email" required /></div>
+            <div className="field"><label>Téléphone</label><input type="tel" name="Téléphone" /></div>
           </div>
           <div className="row">
-            <div className="field"><label>Organisation</label><input type="text" /></div>
-            <div className="field"><label>Sujet</label><select><option>Partenariat</option><option>Événement</option><option>Atelier</option><option>Consulting</option><option>Recrutement</option><option>Presse</option><option>Autre</option></select></div>
+            <div className="field"><label>Organisation</label><input type="text" name="Organisation" /></div>
+            <div className="field"><label>Sujet</label><select name="Sujet"><option>Partenariat</option><option>Événement</option><option>Atelier</option><option>Consulting</option><option>Recrutement</option><option>Presse</option><option>Autre</option></select></div>
           </div>
-          <div className="field"><label>Message</label><textarea required placeholder="Votre message…"></textarea></div>
+          <div className="field"><label>Message</label><textarea name="Message" required placeholder="Votre message…"></textarea></div>
         </DemoForm>
         <div>
           <div className="info-block"><span className="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.4}><rect x="3" y="5" width="18" height="14" rx="1" /><path d="m3 7 9 6 9-6" /></svg></span><div><h4>Email</h4><p>contact@eden-esport.fr <span className="tmp">(à confirmer)</span></p></div></div>

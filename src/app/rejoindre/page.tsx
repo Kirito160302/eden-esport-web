@@ -30,17 +30,17 @@ export default function RejoindrePage() {
         </div>
         <div style={{ marginTop: "3rem" }}>
           <SectionHead eyebrow="Candidature" title="Postule en 2 minutes" />
-          <DemoForm submitLabel="Envoyer ma candidature" okText="Merci ! Ta candidature a bien été envoyée (démo). Nous revenons vers toi rapidement.">
+          <DemoForm submitLabel="Envoyer ma candidature" subject="Nouvelle candidature — Rejoindre Eden" okText="Merci ! Ta candidature a bien été envoyée. Nous revenons vers toi rapidement.">
             <div className="row">
-              <div className="field"><label>Prénom</label><input type="text" required /></div>
-              <div className="field"><label>Nom</label><input type="text" required /></div>
+              <div className="field"><label>Prénom</label><input type="text" name="Prénom" required /></div>
+              <div className="field"><label>Nom</label><input type="text" name="Nom" required /></div>
             </div>
             <div className="row">
-              <div className="field"><label>Email</label><input type="email" required /></div>
-              <div className="field"><label>Je postule comme</label><select><option>Joueur</option><option>Coach / Analyste</option><option>Manager / Staff</option><option>Créateur de contenu</option><option>Bénévole</option><option>Communication</option><option>Partenaire</option></select></div>
+              <div className="field"><label>Email</label><input type="email" name="email" required /></div>
+              <div className="field"><label>Je postule comme</label><select name="Poste visé"><option>Joueur</option><option>Coach / Analyste</option><option>Manager / Staff</option><option>Créateur de contenu</option><option>Bénévole</option><option>Communication</option><option>Partenaire</option></select></div>
             </div>
-            <div className="field"><label>Pseudo / jeu principal</label><input type="text" /></div>
-            <div className="field"><label>Ta motivation</label><textarea placeholder="Parle-nous de toi, de ton niveau, de tes disponibilités…"></textarea></div>
+            <div className="field"><label>Pseudo / jeu principal</label><input type="text" name="Pseudo / jeu" /></div>
+            <div className="field"><label>Ta motivation</label><textarea name="Motivation" placeholder="Parle-nous de toi, de ton niveau, de tes disponibilités…"></textarea></div>
           </DemoForm>
         </div>
       </div></section>

@@ -20,12 +20,12 @@ export default function BenevolePage() {
         </div>
         <div style={{ marginTop: "3rem" }}>
           <SectionHead eyebrow="Candidature bénévole" title="Rejoins l'équipe" />
-          <DemoForm submitLabel="Je deviens bénévole" okText="Merci ! On revient vers toi très vite (démo).">
+          <DemoForm submitLabel="Je deviens bénévole" subject="Nouveau bénévole — Eden Esport" okText="Merci ! On revient vers toi très vite.">
             <div className="row">
-              <div className="field"><label>Prénom & nom</label><input type="text" required /></div>
-              <div className="field"><label>Email</label><input type="email" required /></div>
+              <div className="field"><label>Prénom & nom</label><input type="text" name="Prénom & nom" required /></div>
+              <div className="field"><label>Email</label><input type="email" name="email" required /></div>
             </div>
-            <div className="field"><label>Ce qui te motive</label><textarea placeholder="Disponibilités, envies, compétences…"></textarea></div>
+            <div className="field"><label>Ce qui te motive</label><textarea name="Motivation" placeholder="Disponibilités, envies, compétences…"></textarea></div>
           </DemoForm>
         </div>
       </div></section>
