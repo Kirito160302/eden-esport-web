@@ -126,10 +126,97 @@ export const FAQ: [string, string][] = [
 ];
 
 export const LEGAL: Record<string, { title: string; bodyHtml: string }> = {
-  mentions: { title: "Mentions légales", bodyHtml: "<p>Eden Esport — structure esport française. Les informations légales complètes seront renseignées ici.</p><h2>Éditeur</h2><p>Eden Esport. Contact : contact@eden-esport.fr <em>(à confirmer)</em>.</p><p><em>Contenu de démonstration.</em></p>" },
-  confidentialite: { title: "Politique de confidentialité", bodyHtml: "<p>Eden Esport accorde une grande importance à la protection de vos données.</p><h2>Vos droits</h2><p>Conformément au RGPD, vous disposez d'un droit d'accès, de rectification et de suppression.</p><p><em>Contenu de démonstration.</em></p>" },
-  cgv: { title: "Conditions générales de vente", bodyHtml: "<p>Les présentes CGV encadrent les ventes de la boutique Eden.</p><p><em>Contenu de démonstration.</em></p>" },
-  cookies: { title: "Gestion des cookies", bodyHtml: "<p>Ce site utilise des cookies pour améliorer votre expérience.</p><p><em>Contenu de démonstration.</em></p>" },
+  mentions: {
+    title: "Mentions légales",
+    bodyHtml: `
+<p>Conformément à la loi n°2004-575 du 21 juin 2004 pour la confiance dans l'économie numérique, voici les informations relatives à l'éditeur et à l'hébergement du site <strong>edenesport.fr</strong>.</p>
+
+<h2>Éditeur du site</h2>
+<p><strong>Eden Esport</strong>, association régie par la loi du 1<sup>er</sup> juillet 1901.<br>
+Siège social : Coutras (33230), France<br>
+SIRET : 93447423000018 — SIREN : 934 474 230<br>
+Contact : <a href="mailto:eden.esport.contact@gmail.com">eden.esport.contact@gmail.com</a></p>
+
+<h2>Directeur de la publication</h2>
+<p>Le président de l'association Eden Esport.</p>
+
+<h2>Hébergement du site</h2>
+<p>Le site est hébergé par <strong>Vercel Inc.</strong> — 340 S Lemon Ave #4133, Walnut, CA 91789, États-Unis — <a href="https://vercel.com" target="_blank" rel="noopener noreferrer">vercel.com</a>.</p>
+<p>Le back-office (gestion des contenus) est hébergé par <strong>IONOS SARL</strong> — 7 place de la Gare, 57200 Sarreguemines, France.</p>
+
+<h2>Propriété intellectuelle</h2>
+<p>L'ensemble des contenus présents sur ce site (textes, logos, visuels, éléments graphiques) est la propriété d'Eden Esport, sauf mention contraire (logos des partenaires, marques de jeux). Toute reproduction ou utilisation sans autorisation est interdite.</p>
+
+<h2>Liens & marques citées</h2>
+<p>Les marques et logos des partenaires, éditeurs de jeux et prestataires cités appartiennent à leurs propriétaires respectifs. Les liens externes sont fournis à titre informatif ; Eden Esport n'est pas responsable du contenu des sites tiers.</p>`,
+  },
+  confidentialite: {
+    title: "Politique de confidentialité",
+    bodyHtml: `
+<p>Eden Esport accorde une grande importance à la protection de vos données personnelles, conformément au Règlement Général sur la Protection des Données (RGPD) et à la loi Informatique et Libertés.</p>
+
+<h2>Responsable du traitement</h2>
+<p>Eden Esport — Coutras (33230). Contact : <a href="mailto:eden.esport.contact@gmail.com">eden.esport.contact@gmail.com</a>.</p>
+
+<h2>Données que nous collectons</h2>
+<p>Nous collectons uniquement les données que vous nous transmettez volontairement :</p>
+<ul>
+<li><strong>Formulaires (contact, recrutement, bénévolat)</strong> : prénom, nom, email, téléphone (facultatif), et le contenu de votre message.</li>
+<li><strong>Newsletter</strong> : votre adresse email, si vous choisissez de vous inscrire.</li>
+</ul>
+<p>L'acheminement des messages de nos formulaires est assuré par notre prestataire technique <strong>Web3Forms</strong>, qui transmet vos informations vers notre boîte email.</p>
+
+<h2>Finalités &amp; base légale</h2>
+<p>Vos données servent à répondre à vos demandes, traiter les candidatures et, le cas échéant, vous envoyer nos actualités. Le traitement repose sur votre consentement et sur l'intérêt légitime d'Eden Esport à communiquer avec vous.</p>
+
+<h2>Durée de conservation</h2>
+<p>Vos données sont conservées le temps nécessaire au traitement de votre demande, puis archivées ou supprimées dans un délai raisonnable (généralement 3 ans à compter du dernier contact).</p>
+
+<h2>Destinataires</h2>
+<p>Vos données sont destinées à l'équipe d'Eden Esport et à ses prestataires techniques (hébergement, acheminement des emails). Elles ne sont ni vendues ni cédées à des tiers à des fins commerciales.</p>
+
+<h2>Boutique</h2>
+<p>Les achats sont réalisés sur notre boutique officielle partenaire (Nolt). Les données de commande et de paiement y sont traitées selon la politique de confidentialité de ce partenaire.</p>
+
+<h2>Vos droits</h2>
+<p>Vous disposez d'un droit d'accès, de rectification, d'effacement, d'opposition et de portabilité de vos données. Pour les exercer, écrivez-nous à <a href="mailto:eden.esport.contact@gmail.com">eden.esport.contact@gmail.com</a>. Vous pouvez également introduire une réclamation auprès de la CNIL (<a href="https://www.cnil.fr" target="_blank" rel="noopener noreferrer">cnil.fr</a>).</p>`,
+  },
+  cookies: {
+    title: "Gestion des cookies",
+    bodyHtml: `
+<p>Cette page vous informe de l'utilisation des cookies et technologies similaires sur le site edenesport.fr.</p>
+
+<h2>Ce que nous utilisons</h2>
+<p>Le site utilise un <strong>stockage local</strong> (localStorage) de votre navigateur pour une seule fonction de confort : mémoriser le contenu de votre <strong>panier</strong> de la boutique. Cette information reste sur votre appareil et n'est ni partagée ni utilisée à des fins de suivi.</p>
+<p>À ce jour, le site <strong>n'utilise pas de cookies publicitaires ni de traceurs tiers</strong>.</p>
+
+<h2>Mesure d'audience</h2>
+<p>Si un outil de mesure d'audience (par exemple Google Analytics) est ajouté à l'avenir, cette page sera mise à jour et votre consentement sera recueilli le cas échéant.</p>
+
+<h2>Gérer le stockage</h2>
+<p>Vous pouvez à tout moment vider le stockage local et les cookies depuis les réglages de votre navigateur (section « Confidentialité » ou « Données de site »).</p>`,
+  },
+  cgv: {
+    title: "Conditions générales de vente",
+    bodyHtml: `
+<p>Les présentes conditions encadrent la présentation des produits sur le site edenesport.fr.</p>
+
+<h2>Une boutique-vitrine</h2>
+<p>La boutique de ce site est une <strong>vitrine</strong>. Elle présente les produits Eden Esport et permet de préparer une sélection. <strong>La commande, le paiement, la production et la livraison sont assurés sur notre boutique officielle partenaire (Nolt)</strong>, vers laquelle vous êtes redirigé pour finaliser votre achat.</p>
+<p>Aucun paiement n'est encaissé directement sur edenesport.fr.</p>
+
+<h2>Prix</h2>
+<p>Les prix affichés sur le site sont indiqués en euros TTC, à titre <strong>indicatif</strong>. Les prix, disponibilités et conditions applicables à votre commande sont ceux affichés sur la boutique partenaire au moment de la validation.</p>
+
+<h2>Commande, paiement &amp; livraison</h2>
+<p>La commande, le règlement sécurisé, les délais et frais de livraison ainsi que le service après-vente sont régis par les <strong>conditions générales de vente de la boutique partenaire (Nolt)</strong>, que nous vous invitons à consulter avant tout achat.</p>
+
+<h2>Droit de rétractation &amp; retours</h2>
+<p>Les modalités de rétractation et de retour applicables à votre commande sont celles de la boutique partenaire sur laquelle l'achat est finalisé.</p>
+
+<h2>Contact</h2>
+<p>Pour toute question relative à un produit ou à une commande : <a href="mailto:eden.esport.contact@gmail.com">eden.esport.contact@gmail.com</a>.</p>`,
+  },
 };
 
 export const GALLERY: [string, string][] = [
