@@ -18,7 +18,7 @@
 export const SHOP = {
   // Adresse de ta boutique officielle (Nolt). Remplace par la TIENNE quand elle sera créée.
   // (Ici : lien d'exemple d'une boutique Nolt, en attendant la boutique Eden.)
-  checkoutUrl: "https://club-athletique-beglais.wearenolt.com/public/shops/1d8a5412-69e1-4014-b960-15f1e2e7aef4",
+  checkoutUrl: "https://eden-esport.wearenolt.com/public/shops/bfaf0ae0-1bf8-43a1-829d-88940a151ec9",
   // Étapes expliquées au visiteur
   howItWorks: [
     { title: "Compose ta sélection", text: "Parcours la collection et ajoute les pièces qui te plaisent, avec leur taille — comme une liste d'envies." },
