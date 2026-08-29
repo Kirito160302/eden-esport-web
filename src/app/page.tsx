@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getTeams, getArticles, getEvents, getPartners } from "@/lib/content";
+import { getTeams, getArticles, getEvents, getPartners, getProducts } from "@/lib/content";
 import { TeamCard, SoonCard, NewsCard } from "@/components/cards";
 import HomeEffects from "@/components/HomeEffects";
 import PartnerLogo from "@/components/PartnerLogo";
@@ -14,8 +14,11 @@ const ACTIONS: [string, string][] = [
 ];
 
 export default async function Home() {
-  const [teams, news, events, partners] = await Promise.all([getTeams(), getArticles("news"), getEvents(), getPartners()]);
+  const [teams, news, events, partners, products] = await Promise.all([getTeams(), getArticles("news"), getEvents(), getPartners(), getProducts()]);
   const evt = events.find((e) => e.status === "upcoming") ?? events[0];
+  // produit mis en avant : un maillot en priorité, sinon le 1er produit
+  const feat = products.find((p) => p.category === "maillots") ?? products[0];
+  const featImg = !feat ? "/jersey.jpg" : feat.image === "jersey" ? "/jersey.jpg" : feat.image === "symbol" ? "/symbol.png" : feat.image;
 
   return (
     <>
@@ -177,12 +180,12 @@ export default async function Home() {
           </div>
           <div className="shop-grid">
             <article className="shop-feat notch reveal">
-              <img src="/jersey.jpg" alt="Maillot officiel Eden Esport" />
+              <img src={featImg} alt={feat ? feat.name : "Maillot officiel Eden Esport"} />
               <div className="info">
-                <span className="tag tag--gold">Édition officielle</span>
-                <h3>Maillot Eden 2026</h3>
-                <p>Le maillot officiel de la structure. Design signature « Never Give Up », matières techniques et énergie violette.</p>
-                <Link href="/boutique/maillot-eden-2026" className="btn btn--sm">Voir le produit<span className="arw">→</span></Link>
+                <span className="tag tag--gold">{feat?.badge || "Édition officielle"}</span>
+                <h3>{feat ? feat.name : "Maillot Eden"}</h3>
+                <p>Le maillot officiel de la structure. Design signature aux couleurs d&apos;Eden, matières techniques.</p>
+                <Link href={feat ? `/boutique/${feat.slug}` : "/boutique"} className="btn btn--sm">Voir le produit<span className="arw">→</span></Link>
               </div>
             </article>
             <div className="shop-side">
