@@ -7,18 +7,26 @@ import { SPONSORS, CHANNELS } from "@/lib/journal-data";
 
 type PMatch = { date: string; iso?: string; opponent: string; competition: string; game: string; gameKey: string };
 type PTournament = { slug: string; title: string; date: string; place: string };
+type LiveMatch = { id: number; a: string; aLogo?: string; b: string; bLogo?: string; league: string; time: string; live: boolean; score?: string };
+type LiveTournament = { id: number; name: string; league: string; dates: string };
+type LiveData = Record<string, { matches: LiveMatch[]; tournaments: LiveTournament[] }>;
 
 function Placeholder({ children }: { children: React.ReactNode }) {
   return <div className="jp-placeholder"><span className="jp-live-dot" aria-hidden="true"></span>{children}</div>;
 }
 
-export default function JournalPortal({ articles, matches, tournaments }: { articles: Article[]; matches: PMatch[]; tournaments: PTournament[] }) {
+export default function JournalPortal({
+  articles, matches, tournaments, live, liveEnabled,
+}: { articles: Article[]; matches: PMatch[]; tournaments: PTournament[]; live?: LiveData; liveEnabled?: boolean }) {
   const [ch, setCh] = useState("eden");
   const isEden = ch === "eden";
   const chLabel = CHANNELS.find((c) => c.key === ch)?.label || "";
 
   const featured = articles[0];
   const rest = articles.slice(1);
+
+  const liveMatches = !isEden ? (live?.[ch]?.matches ?? []) : [];
+  const liveTournaments = !isEden ? (live?.[ch]?.tournaments ?? []) : [];
 
   return (
     <div className="journal">
@@ -47,8 +55,24 @@ export default function JournalPortal({ articles, matches, tournaments }: { arti
                 <span className="date">{m.date}</span>
               </div>
             )) : <Placeholder>Aucun match Eden programmé pour l&apos;instant.</Placeholder>
+          ) : liveMatches.length > 0 ? (
+            liveMatches.map((m) => (
+              <div className="match" key={m.id}>
+                <span className="comp">{m.league}</span>
+                <span className="teams">
+                  {m.aLogo && <img className="jp-team-logo" src={m.aLogo} alt="" />}{m.a}
+                  {" — "}
+                  {m.b}{m.bLogo && <img className="jp-team-logo" src={m.bLogo} alt="" />}
+                  {m.score && <strong style={{ color: "var(--lavender)", marginLeft: ".5rem" }}>{m.score}</strong>}
+                </span>
+                <span className={"date" + (m.live ? " jp-livenow" : "")}>{m.time}</span>
+              </div>
+            ))
           ) : (
-            <Placeholder>Matchs pros {chLabel} du jour — <strong>bientôt</strong> (données live à brancher).</Placeholder>
+            <Placeholder>{liveEnabled
+              ? <>Aucun match pro {chLabel} programmé pour le moment.</>
+              : <>Matchs pros {chLabel} — <strong>données live à activer</strong> (clé PandaScore).</>}
+            </Placeholder>
           )}
         </section>
 
@@ -91,8 +115,19 @@ export default function JournalPortal({ articles, matches, tournaments }: { arti
                 <span className="date">{t.date} · {t.place}</span>
               </Link>
             )) : <Placeholder>Aucun tournoi Eden en cours.</Placeholder>
+          ) : liveTournaments.length > 0 ? (
+            liveTournaments.map((t) => (
+              <div className="match" key={t.id}>
+                <span className="comp">{t.league || "Tournoi"}</span>
+                <span className="teams">{t.name}</span>
+                <span className="date">{t.dates}</span>
+              </div>
+            ))
           ) : (
-            <Placeholder>Tournois pros & amateurs {chLabel} — <strong>bientôt</strong> (données live à brancher).</Placeholder>
+            <Placeholder>{liveEnabled
+              ? <>Aucun tournoi {chLabel} en cours actuellement.</>
+              : <>Tournois {chLabel} — <strong>données live à activer</strong> (clé PandaScore).</>}
+            </Placeholder>
           )}
         </section>
       </div>
