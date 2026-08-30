@@ -2,16 +2,18 @@ import type { Metadata } from "next";
 import { getArticles, getEvents } from "@/lib/content";
 import { ESPORT } from "@/lib/esport-data";
 import { getLiveMatches, getLiveTournaments, LIVE_ENABLED } from "@/lib/esport-live";
+import { getWorldNews } from "@/lib/news-live";
 import { PageHero } from "@/components/ui";
 import JournalPortal from "@/components/JournalPortal";
 
 export const metadata: Metadata = { title: "Actualités" };
 
 export default async function ActualitesPage() {
-  const [articles, events, lolM, valM, lolT, valT] = await Promise.all([
+  const [articles, events, lolM, valM, lolT, valT, lolN, valN] = await Promise.all([
     getArticles(), getEvents(),
     getLiveMatches("lol"), getLiveMatches("valorant"),
     getLiveTournaments("lol"), getLiveTournaments("valorant"),
+    getWorldNews("lol"), getWorldNews("valorant"),
   ]);
 
   const matches = ESPORT.flatMap((g) => g.calendar.map((m) => ({ ...m, game: g.label, gameKey: g.key })));
@@ -23,6 +25,7 @@ export default async function ActualitesPage() {
     lol: { matches: lolM, tournaments: lolT },
     valorant: { matches: valM, tournaments: valT },
   };
+  const news = { lol: lolN, valorant: valN };
 
   return (
     <>
@@ -32,7 +35,7 @@ export default async function ActualitesPage() {
         lead="L'actu d'Eden et de l'esport — choisis une chaîne pour suivre les matchs, les tournois et les dernières news."
       />
       <section className="section"><div className="wrap">
-        <JournalPortal articles={articles} matches={matches} tournaments={tournaments} live={live} liveEnabled={LIVE_ENABLED} />
+        <JournalPortal articles={articles} matches={matches} tournaments={tournaments} live={live} news={news} liveEnabled={LIVE_ENABLED} />
       </div></section>
     </>
   );

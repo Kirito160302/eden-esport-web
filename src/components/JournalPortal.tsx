@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { Article } from "@/lib/types";
+import type { NewsItem } from "@/lib/news-live";
 import { SPONSORS, CHANNELS } from "@/lib/journal-data";
 
 type PMatch = { date: string; iso?: string; opponent: string; competition: string; game: string; gameKey: string };
@@ -10,6 +11,7 @@ type PTournament = { slug: string; title: string; date: string; place: string };
 type LiveMatch = { id: number; a: string; aLogo?: string; b: string; bLogo?: string; league: string; time: string; live: boolean; score?: string };
 type LiveTournament = { id: number; name: string; league: string; dates: string };
 type LiveData = Record<string, { matches: LiveMatch[]; tournaments: LiveTournament[] }>;
+type NewsData = Record<string, NewsItem[]>;
 
 function Placeholder({ children }: { children: React.ReactNode }) {
   return <div className="jp-placeholder"><span className="jp-live-dot" aria-hidden="true"></span>{children}</div>;
@@ -37,9 +39,23 @@ function LiveRow({ m }: { m: LiveMatch }) {
   );
 }
 
+// Ligne d'actu mondiale (source RSS externe)
+function NewsRow({ n }: { n: NewsItem }) {
+  return (
+    <a href={n.link} target="_blank" rel="noopener noreferrer" className="jp-row jp-row--ext">
+      <span className="jp-row-thumb">{n.image ? <img src={n.image} alt="" loading="lazy" /> : <img src="/symbol.png" alt="" />}</span>
+      <span className="jp-row-body">
+        <span className="jp-row-meta"><span className="cat">{n.source}</span>{n.date ? <> · {n.date}</> : null}</span>
+        <span className="jp-row-title">{n.title}</span>
+      </span>
+      <span className="jp-row-ext" aria-hidden="true">↗</span>
+    </a>
+  );
+}
+
 export default function JournalPortal({
-  articles, matches, tournaments, live, liveEnabled,
-}: { articles: Article[]; matches: PMatch[]; tournaments: PTournament[]; live?: LiveData; liveEnabled?: boolean }) {
+  articles, matches, tournaments, live, news, liveEnabled,
+}: { articles: Article[]; matches: PMatch[]; tournaments: PTournament[]; live?: LiveData; news?: NewsData; liveEnabled?: boolean }) {
   const [ch, setCh] = useState("eden");
   const isEden = ch === "eden";
   const chLabel = CHANNELS.find((c) => c.key === ch)?.label || "";
@@ -49,6 +65,7 @@ export default function JournalPortal({
 
   const liveMatches = !isEden ? (live?.[ch]?.matches ?? []) : [];
   const liveTournaments = !isEden ? (live?.[ch]?.tournaments ?? []) : [];
+  const worldNews = !isEden ? (news?.[ch] ?? []) : [];
 
   return (
     <div className="journal">
@@ -87,10 +104,23 @@ export default function JournalPortal({
           )}
         </section>
 
-        {/* ACTUALITÉS */}
+        {/* ACTUALITÉS MONDIALE (chaîne jeu uniquement) */}
+        {!isEden && (
+          <section className="jp-block">
+            <div className="jp-head"><h2>Actu {chLabel}</h2><span className="jp-src-note">via flux esport</span></div>
+            {worldNews.length > 0 ? (
+              <div className="jp-list">
+                {worldNews.map((n) => <NewsRow n={n} key={n.link} />)}
+              </div>
+            ) : (
+              <Placeholder>L&apos;actu mondiale {chLabel} arrive bientôt (flux en cours d&apos;indexation). En attendant, l&apos;actu Eden ci-dessous.</Placeholder>
+            )}
+          </section>
+        )}
+
+        {/* ACTUALITÉS EDEN */}
         <section className="jp-block">
-          <div className="jp-head"><h2>{isEden ? "Actualités Eden" : `Actualités ${chLabel} & Eden`}</h2><Link href="/blog" className="jp-seeall">Voir tout →</Link></div>
-          {!isEden && <Placeholder>L&apos;actu mondiale {chLabel} en direct — <strong>bientôt</strong> (agrégation à brancher). En attendant, l&apos;actu Eden ci-dessous.</Placeholder>}
+          <div className="jp-head"><h2>{isEden ? "Actualités Eden" : "Sur Eden"}</h2><Link href="/blog" className="jp-seeall">Voir tout →</Link></div>
           {featured && (
             <Link href={`/actualites/${featured.slug}`} className="jp-featured">
               <div className="jp-feat-thumb"><span className="glyph"><img src="/symbol.png" alt="" /></span></div>
