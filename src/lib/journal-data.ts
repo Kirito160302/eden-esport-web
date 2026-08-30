@@ -10,8 +10,10 @@ export const SPONSORS: Sponsor[] = [
 ];
 
 // Les "chaînes" du média (Eden en premier, puis les jeux où Eden est présent)
-export const CHANNELS: { key: string; label: string; accent?: string }[] = [
+// logo : dépose le logo officiel du jeu dans public/games/ (PNG fond transparent).
+//        S'il est absent, on affiche une pastille colorée avec l'initiale.
+export const CHANNELS: { key: string; label: string; accent?: string; logo?: string }[] = [
   { key: "eden", label: "Eden" },
-  { key: "lol", label: "League of Legends", accent: "#5a8cff" },
-  { key: "valorant", label: "Valorant", accent: "#ff4655" },
+  { key: "lol", label: "League of Legends", accent: "#5a8cff", logo: "/games/lol.png" },
+  { key: "valorant", label: "Valorant", accent: "#ff4655", logo: "/games/valorant.png" },
 ];

@@ -15,6 +15,28 @@ function Placeholder({ children }: { children: React.ReactNode }) {
   return <div className="jp-placeholder"><span className="jp-live-dot" aria-hidden="true"></span>{children}</div>;
 }
 
+// Icône de jeu : logo officiel si présent, sinon initiale colorée (jamais d'image cassée).
+function GameIcon({ logo, label, accent }: { logo?: string; label: string; accent?: string }) {
+  const [err, setErr] = useState(false);
+  if (logo && !err) return <img src={logo} alt="" onError={() => setErr(true)} />;
+  return <span className="ch-letter" style={accent ? { color: accent } : undefined}>{label.charAt(0)}</span>;
+}
+
+// Ligne de match live (PandaScore)
+function LiveRow({ m }: { m: LiveMatch }) {
+  return (
+    <div className="jp-match">
+      <span className="jp-m-league">{m.league}</span>
+      <span className="jp-m-teams">
+        <span className="jp-m-team">{m.aLogo && <img src={m.aLogo} alt="" />}<span className="jp-m-name">{m.a}</span></span>
+        <span className="jp-m-vs">{m.score || "vs"}</span>
+        <span className="jp-m-team"><span className="jp-m-name">{m.b}</span>{m.bLogo && <img src={m.bLogo} alt="" />}</span>
+      </span>
+      <span className={"jp-m-time" + (m.live ? " live" : "")}>{m.time}</span>
+    </div>
+  );
+}
+
 export default function JournalPortal({
   articles, matches, tournaments, live, liveEnabled,
 }: { articles: Article[]; matches: PMatch[]; tournaments: PTournament[]; live?: LiveData; liveEnabled?: boolean }) {
@@ -36,8 +58,8 @@ export default function JournalPortal({
         <div className="ch-tabs" role="tablist" aria-label="Chaînes">
           {CHANNELS.map((c) => (
             <button key={c.key} className={"ch-tab" + (c.key === ch ? " on" : "")} onClick={() => setCh(c.key)} type="button" role="tab" aria-selected={c.key === ch}>
-              <span className="ch-ico" style={c.accent ? { background: c.accent } : undefined}>
-                {c.key === "eden" ? <img src="/symbol.png" alt="" /> : c.label.charAt(0)}
+              <span className={"ch-ico" + (c.key !== "eden" ? " ch-ico--game" : "")}>
+                {c.key === "eden" ? <img src="/symbol.png" alt="" /> : <GameIcon logo={c.logo} label={c.label} accent={c.accent} />}
               </span>
               {c.label}
             </button>
@@ -56,18 +78,7 @@ export default function JournalPortal({
               </div>
             )) : <Placeholder>Aucun match Eden programmé pour l&apos;instant.</Placeholder>
           ) : liveMatches.length > 0 ? (
-            liveMatches.map((m) => (
-              <div className="match" key={m.id}>
-                <span className="comp">{m.league}</span>
-                <span className="teams">
-                  {m.aLogo && <img className="jp-team-logo" src={m.aLogo} alt="" />}{m.a}
-                  {" — "}
-                  {m.b}{m.bLogo && <img className="jp-team-logo" src={m.bLogo} alt="" />}
-                  {m.score && <strong style={{ color: "var(--lavender)", marginLeft: ".5rem" }}>{m.score}</strong>}
-                </span>
-                <span className={"date" + (m.live ? " jp-livenow" : "")}>{m.time}</span>
-              </div>
-            ))
+            liveMatches.map((m) => <LiveRow m={m} key={m.id} />)
           ) : (
             <Placeholder>{liveEnabled
               ? <>Aucun match pro {chLabel} programmé pour le moment.</>
