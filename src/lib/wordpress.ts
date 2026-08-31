@@ -96,12 +96,16 @@ export async function wpArticles(): Promise<Article[] | null> {
 
 /* =============================== ÉQUIPES =============================== */
 export async function wpTeams(): Promise<Team[] | null> {
-  const data = await gql<{ teams: { nodes: any[] } }>(`
+  // Tolérant : version complète, puis repli si status/description manquent.
+  const build = (fields: string) => `
     query Teams {
       teams(first: 50) {
-        nodes { slug title teamFields { game status description } }
+        nodes { slug title teamFields { ${fields} } }
       }
-    }`);
+    }`;
+  const data =
+    (await gql<{ teams: { nodes: any[] } }>(build("game status description"))) ||
+    (await gql<{ teams: { nodes: any[] } }>(build("game")));
   if (!data?.teams?.nodes) return null;
   return data.teams.nodes.map((n) => {
     const game = one(n.teamFields?.game);
@@ -120,31 +124,41 @@ export async function wpTeams(): Promise<Team[] | null> {
 // reseaux (textarea "Label | url" par ligne), ordre (number).
 // Photo = Image mise en avant. Voir GUIDE-WORDPRESS-EQUIPES.md.
 export async function wpPlayers(): Promise<Player[] | null> {
-  const data = await gql<{ players: { nodes: any[] } }>(`
+  // Requête tolérante : on tente la version complète, puis on retombe sur des
+  // versions plus simples si certains champs (bio, reseaux, ordre) ou l'image
+  // mise en avant n'existent pas encore dans WordPress. Un seul champ manquant
+  // ferait échouer TOUTE la requête GraphQL — d'où ces paliers.
+  const build = (fields: string, withImg: boolean) => `
     query Players {
       players(first: 100) {
         nodes {
           slug title
-          featuredImage { node { sourceUrl } }
-          playerFields { fullName role game bio reseaux ordre }
+          ${withImg ? "featuredImage { node { sourceUrl } }" : ""}
+          playerFields { ${fields} }
         }
       }
-    }`);
+    }`;
+  const data =
+    (await gql<{ players: { nodes: any[] } }>(build("fullName role game bio reseaux ordre", true))) ||
+    (await gql<{ players: { nodes: any[] } }>(build("fullName role game", true))) ||
+    (await gql<{ players: { nodes: any[] } }>(build("fullName role game", false)));
   if (!data?.players?.nodes) return null;
   const list = data.players.nodes.map((n) => {
     const f = n.playerFields || {};
     const game = one(f.game);
-    const title = n.title || "?";
+    // pseudo = Titre du post ; si vide, on retombe sur le prénom/nom
+    const pseudo = n.title || f.fullName || "Joueur";
+    const fullName = f.fullName && f.fullName !== pseudo ? f.fullName : undefined;
     const socials = parseLinks(f.reseaux || "").map((s) => ({ label: s.name, url: s.url }));
     const ordre = typeof f.ordre === "number" ? f.ordre : (parseInt(f.ordre, 10) || 999);
     return {
       _ordre: ordre,
-      slug: n.slug, pseudo: title,
-      name: f.fullName || undefined,
+      slug: n.slug, pseudo,
+      name: fullName,
       role: f.role || "",
       game, gameKey: slugifyGame(game),
       teamName: "", teamSlug: "",
-      initials: title.charAt(0).toUpperCase(),
+      initials: pseudo.charAt(0).toUpperCase(),
       bio: f.bio || "",
       photo: n.featuredImage?.node?.sourceUrl || undefined,
       socials: socials.length ? socials : undefined,
