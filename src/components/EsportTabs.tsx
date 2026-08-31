@@ -75,7 +75,6 @@ export default function EsportTabs({ games }: { games: EGame[] }) {
             </button>
           ))}
         </div>
-        <p className="tmp" style={{ marginTop: "1rem" }}>* Effectif de démonstration — à compléter (photos, noms, réseaux).</p>
       </div>
 
       {/* CALENDRIER */}
@@ -92,7 +91,6 @@ export default function EsportTabs({ games }: { games: EGame[] }) {
                 <span className="score">{m.result || "à venir"}</span>
               </div>
             ))}
-            <p className="tmp" style={{ marginTop: ".6rem" }}>* Calendrier d&apos;exemple — à remplacer par tes vraies dates.</p>
           </>
         ) : (
           <p className="tmp">Calendrier à venir — les prochains matchs seront affichés ici.</p>
@@ -114,7 +112,7 @@ export default function EsportTabs({ games }: { games: EGame[] }) {
             ))}
           </div>
         ) : (
-          <p className="tmp">Replays à venir — colle un lien YouTube d&apos;un match et il s&apos;affichera ici.</p>
+          <p className="tmp">Replays à venir.</p>
         )}
       </div>
 

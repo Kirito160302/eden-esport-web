@@ -34,7 +34,7 @@ export default async function TeamPage({ params }: { params: Promise<{ slug: str
         <div className="section-head">
           <p className="eyebrow">Roster</p>
           <h2 style={{ fontSize: "var(--fs-h2)" }}>Les joueurs</h2>
-          <p className="tmp">Effectif de démonstration — en cours de constitution.</p>
+          <p className="tmp">Effectif en cours de constitution.</p>
         </div>
         <div className="roster">
           {team.roster.map((p) => (

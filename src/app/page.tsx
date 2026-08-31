@@ -4,6 +4,15 @@ import { TeamCard, SoonCard, NewsCard } from "@/components/cards";
 import HomeEffects from "@/components/HomeEffects";
 import PartnerLogo from "@/components/PartnerLogo";
 
+// Tronque un texte à la longueur n, sur une frontière de mot, avec « … »
+const clip = (s: string, n = 170): string => {
+  const t = (s || "").trim();
+  if (t.length <= n) return t;
+  const cut = t.slice(0, n);
+  const sp = cut.lastIndexOf(" ");
+  return (sp > 40 ? cut.slice(0, sp) : cut).replace(/[.,;:!?\s]+$/, "") + "…";
+};
+
 const ACTIONS: [string, string][] = [
   ["Compétition", "Des équipes exigeantes qui portent les couleurs d'Eden sur les scènes esport."],
   ["Événements", "Organisation de tournois, LAN et rassemblements gaming pour tous les publics."],
@@ -116,14 +125,13 @@ export default async function Home() {
                 <span className="tag tag--live"><span className="dot"></span>{evt.tag}</span>
                 <h3>{evt.title}</h3>
                 <p className="where">{evt.date} · {evt.place}</p>
-                <p>{evt.description}</p>
+                <p>{clip(evt.description, 180)}</p>
                 <div className="countdown" aria-label="Compte à rebours avant l'événement">
                   <div className="cd-unit"><span className="v" data-cd="d">00</span><span className="u">Jours</span></div>
                   <div className="cd-unit"><span className="v" data-cd="h">00</span><span className="u">Heures</span></div>
                   <div className="cd-unit"><span className="v" data-cd="m">00</span><span className="u">Min</span></div>
                   <div className="cd-unit"><span className="v" data-cd="s">00</span><span className="u">Sec</span></div>
                 </div>
-                <p className="tmp">* Événement provisoire — informations à confirmer.</p>
                 <div style={{ marginTop: "1.4rem", display: "flex", gap: ".8rem", flexWrap: "wrap" }}>
                   <Link href={`/evenements/${evt.slug}`} className="btn btn--sm">Voir l&apos;événement<span className="arw">→</span></Link>
                   <Link href="/evenements" className="btn btn--ghost btn--sm">Tous les événements</Link>

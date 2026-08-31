@@ -21,7 +21,7 @@ function mkPlayers(list: [string, string][], game: string, gameKey: string, team
     teamName,
     teamSlug,
     initials: pseudo[0],
-    bio: "Profil de démonstration. La biographie complète sera renseignée via le CMS.",
+    bio: "Biographie à venir.",
   }));
 }
 
