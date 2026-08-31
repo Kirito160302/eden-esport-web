@@ -18,14 +18,18 @@ export type NewsItem = {
   image?: string;
 };
 
+// Google News RSS : fiable côté serveur (pas de blocage datacenter comme
+// Cloudflare), requêtable par mots-clés, résultats en français.
+// La vraie source de chaque article est lue dans la balise <source>.
+const gnews = (q: string) =>
+  `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=fr&gl=FR&ceid=FR:fr`;
+
 const FEEDS: Record<"lol" | "valorant", { url: string; source: string }[]> = {
   lol: [
-    { url: "https://dotesports.com/league-of-legends/feed", source: "Dot Esports" },
-    { url: "https://www.invenglobal.com/rss/news/lol", source: "Inven Global" },
+    { url: gnews('"League of Legends" esport'), source: "Google News" },
   ],
   valorant: [
-    { url: "https://dotesports.com/valorant/feed", source: "Dot Esports" },
-    { url: "https://www.invenglobal.com/rss/news/valorant", source: "Inven Global" },
+    { url: gnews("Valorant esport"), source: "Google News" },
   ],
 };
 
@@ -88,16 +92,21 @@ async function fetchFeed(url: string, source: string, revalidate: number): Promi
     const items = xml.match(/<item[\s\S]*?<\/item>/gi) || [];
     const out: NewsItem[] = [];
     for (const it of items.slice(0, 8)) {
-      const title = decode(tag(it, "title"));
+      let title = decode(tag(it, "title"));
       let link = decode(tag(it, "link"));
       // certains flux mettent le lien dans un attribut <link href="">
       if (!link) link = attr(it, /<link[^>]+href="([^"]+)"/i) || "";
       if (!title || !link) continue;
+      // Google News : la vraie source est dans <source>, et le titre finit par " - Éditeur"
+      const realSource = decode(tag(it, "source")) || source;
+      if (realSource && title.toLowerCase().endsWith((" - " + realSource).toLowerCase())) {
+        title = title.slice(0, title.length - realSource.length - 3).trim();
+      }
       const iso = tag(it, "pubDate") || tag(it, "dc:date") || tag(it, "published") || "";
       out.push({
         title,
         link: link.trim(),
-        source,
+        source: realSource,
         iso: iso.trim() || undefined,
         date: fmt(iso.trim()),
         image: extractImage(it),
