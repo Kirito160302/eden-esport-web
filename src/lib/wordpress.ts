@@ -128,6 +128,8 @@ export async function wpPlayers(): Promise<Player[] | null> {
   // versions plus simples si certains champs (bio, reseaux, ordre) ou l'image
   // mise en avant n'existent pas encore dans WordPress. Un seul champ manquant
   // ferait échouer TOUTE la requête GraphQL — d'où ces paliers.
+  // Noms GraphQL réels du groupe playerFields (vérifiés par introspection) :
+  // fullName, posteRole, jeu, biobio, reseaux, ordreDaffichage.
   const build = (fields: string, withImg: boolean) => `
     query Players {
       players(first: 100) {
@@ -139,27 +141,27 @@ export async function wpPlayers(): Promise<Player[] | null> {
       }
     }`;
   const data =
-    (await gql<{ players: { nodes: any[] } }>(build("fullName role game bio reseaux ordre", true))) ||
-    (await gql<{ players: { nodes: any[] } }>(build("fullName role game", true))) ||
-    (await gql<{ players: { nodes: any[] } }>(build("fullName role game", false)));
+    (await gql<{ players: { nodes: any[] } }>(build("fullName posteRole jeu biobio reseaux ordreDaffichage", true))) ||
+    (await gql<{ players: { nodes: any[] } }>(build("fullName posteRole jeu", true))) ||
+    (await gql<{ players: { nodes: any[] } }>(build("fullName posteRole jeu", false)));
   if (!data?.players?.nodes) return null;
   const list = data.players.nodes.map((n) => {
     const f = n.playerFields || {};
-    const game = one(f.game);
+    const game = one(f.jeu);
     // pseudo = Titre du post ; si vide, on retombe sur le prénom/nom
     const pseudo = n.title || f.fullName || "Joueur";
     const fullName = f.fullName && f.fullName !== pseudo ? f.fullName : undefined;
     const socials = parseLinks(f.reseaux || "").map((s) => ({ label: s.name, url: s.url }));
-    const ordre = typeof f.ordre === "number" ? f.ordre : (parseInt(f.ordre, 10) || 999);
+    const ordre = typeof f.ordreDaffichage === "number" ? f.ordreDaffichage : (parseInt(f.ordreDaffichage, 10) || 999);
     return {
       _ordre: ordre,
       slug: n.slug, pseudo,
       name: fullName,
-      role: f.role || "",
+      role: f.posteRole || "",
       game, gameKey: slugifyGame(game),
       teamName: "", teamSlug: "",
       initials: pseudo.charAt(0).toUpperCase(),
-      bio: f.bio || "",
+      bio: f.biobio || "",
       photo: n.featuredImage?.node?.sourceUrl || undefined,
       socials: socials.length ? socials : undefined,
     };
