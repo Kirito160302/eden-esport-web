@@ -1125,3 +1125,52 @@ main section,.finale{scroll-margin-top:90px}
 .soc-tiktok:hover{background:#000;border-color:#25f4ee}
 .soc-discord:hover{background:#5865f2;border-color:#5865f2}
 .soc-x:hover{background:#000;border-color:#000}
+
+/* ============================================================
+   ESPACE MEMBRE (joueurs & staff)
+   ============================================================ */
+.esp-wrap{max-width:820px}
+.esp-card{background:var(--surface);border:1px solid var(--line-2);border-radius:16px;padding:1.3rem 1.4rem}
+.esp-center{text-align:center}
+.esp-center h2{font-size:1.5rem;margin-bottom:.4rem}
+.esp-topbar{display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:1.4rem}
+.esp-topbar strong{font-size:1.15rem;margin-right:.5rem}
+.esp-role{font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;padding:.15rem .5rem;border-radius:999px;border:1px solid var(--line-2)}
+.esp-role-staff{color:#ffd76a;border-color:rgba(255,215,106,.4);background:rgba(255,215,106,.08)}
+.esp-role-player{color:var(--lavender);border-color:var(--line-3)}
+
+/* segmented control */
+.esp-seg{display:inline-flex;gap:.3rem;background:var(--surface-2);border:1px solid var(--line-2);border-radius:12px;padding:.3rem}
+.esp-seg button{border:none;background:transparent;color:var(--muted);padding:.5rem .9rem;border-radius:9px;cursor:pointer;font:inherit;font-weight:600;font-size:.9rem;transition:background .15s,color .15s}
+.esp-seg button.on{background:var(--violet);color:#fff}
+.esp-tabs{margin-bottom:1.2rem}
+
+.esp-list{display:flex;flex-direction:column;gap:1rem}
+.esp-seance-head{display:flex;justify-content:space-between;align-items:center;gap:.6rem;margin-bottom:.5rem}
+.esp-badge{font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;font-weight:700;padding:.2rem .55rem;border-radius:6px}
+.esp-training{background:rgba(125,92,255,.16);color:var(--lavender)}
+.esp-match{background:rgba(255,70,85,.16);color:#ff8a94}
+.esp-date{font-size:.85rem;color:var(--muted);text-transform:capitalize}
+.esp-seance h3{font-size:1.15rem;margin:.1rem 0}
+.esp-vs{color:var(--muted);font-weight:500}
+.esp-meta{color:var(--muted);font-size:.9rem;display:flex;gap:.4rem;flex-wrap:wrap;margin:.2rem 0}
+.esp-notes{font-size:.9rem;margin:.5rem 0 0;padding:.5rem .7rem;background:var(--surface-2);border-radius:8px}
+
+.esp-rsvp{display:flex;gap:.5rem;margin:.9rem 0 .3rem;flex-wrap:wrap}
+.esp-rsvp-btn{flex:1;min-width:90px;border:1px solid var(--line-2);background:var(--surface-2);color:var(--muted);padding:.55rem;border-radius:10px;cursor:pointer;font:inherit;font-weight:600;font-size:.85rem;transition:all .15s}
+.esp-rsvp-btn:hover{border-color:var(--line-3);color:var(--text)}
+.esp-rsvp-btn.esp-yes.on{background:#1f7a4d;border-color:#1f7a4d;color:#fff}
+.esp-rsvp-btn.esp-maybe.on{background:#b8860b;border-color:#b8860b;color:#fff}
+.esp-rsvp-btn.esp-no.on{background:#a13636;border-color:#a13636;color:#fff}
+
+.esp-counts{display:flex;gap:.9rem;align-items:center;flex-wrap:wrap;margin-top:.6rem;font-size:.82rem}
+.esp-c{color:var(--muted)}
+.esp-c.esp-yes{color:#5bd08d}.esp-c.esp-maybe{color:#e8c35a}.esp-c.esp-no{color:#e88a8a}
+.esp-toggle{margin-left:auto;background:none;border:none;color:var(--lavender);cursor:pointer;font:inherit;font-size:.82rem;text-decoration:underline}
+.esp-people{list-style:none;margin:.6rem 0 0;padding:.6rem .2rem 0;border-top:1px solid var(--line-2);font-size:.88rem;display:flex;flex-direction:column;gap:.35rem}
+.esp-dot{display:inline-block;width:.6rem;height:.6rem;border-radius:50%;margin-right:.5rem}
+.esp-dot.esp-yes{background:#5bd08d}.esp-dot.esp-maybe{background:#e8c35a}.esp-dot.esp-no{background:#e88a8a}
+.esp-del{margin-top:.8rem;background:none;border:none;color:#c96;cursor:pointer;font:inherit;font-size:.8rem;opacity:.7}
+.esp-del:hover{opacity:1;text-decoration:underline}
+.esp-row{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}
+@media(max-width:520px){.esp-row{grid-template-columns:1fr}}

@@ -49,6 +49,7 @@ export default function Footer() {
             <Link href="/legal/confidentialite">Confidentialité</Link>
             <Link href="/legal/cookies">Cookies</Link>
             <Link href="/legal/cgv">CGV</Link>
+            <Link href="/espace">Espace équipe</Link>
           </div>
         </div>
         <p className="copy" style={{ paddingBottom: "2.5rem" }}>© 2026 Eden Esport — Tous droits réservés.</p>
