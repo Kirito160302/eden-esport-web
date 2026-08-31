@@ -8,11 +8,38 @@ import type { Team, Player, Event, Article } from "./types";
 import { PRODUCTS, type ShopProduct } from "./shop-data";
 import { PARTNERS, type Partner } from "./partners-data";
 import { EVENTS } from "./events-data";
+import { ESPORT, type EGame, type EPlayer } from "./esport-data";
 
-// Équipes & joueurs : gérés en local pour l'instant (la page Esport riche fait
-// référence). Pour les repasser sur WordPress plus tard, réactive les lignes wp.
-async function rawTeams(): Promise<Team[]> { return demo.DEMO_TEAMS; }
-async function rawPlayers(): Promise<Player[]> { return demo.DEMO_PLAYERS; }
+// Équipes & joueurs : WordPress en priorité, sinon données de démonstration.
+async function rawTeams(): Promise<Team[]> {
+  const wpT = await wp.wpTeams();
+  return wpT && wpT.length ? wpT : demo.DEMO_TEAMS;
+}
+async function rawPlayers(): Promise<Player[]> {
+  const wpP = await wp.wpPlayers();
+  return wpP && wpP.length ? wpP : demo.DEMO_PLAYERS;
+}
+
+// Page /esport : on garde la structure riche (calendrier, palmarès, replays)
+// définie dans esport-data.ts, mais si des joueurs existent dans WordPress pour
+// un jeu, ils remplacent le roster de ce jeu. Sinon → roster du code.
+export async function getEsportGames(): Promise<EGame[]> {
+  const wpP = await wp.wpPlayers();
+  if (!wpP || !wpP.length) return ESPORT;
+  return ESPORT.map((g) => {
+    const roster: EPlayer[] = wpP
+      .filter((p) => p.gameKey === g.key)
+      .map((p) => ({
+        slug: p.slug,
+        pseudo: p.pseudo,
+        name: p.name && p.name !== "—" ? p.name : undefined,
+        role: p.role,
+        photo: p.photo,
+        socials: p.socials,
+      }));
+    return roster.length ? { ...g, roster } : g;
+  });
+}
 
 export async function getTeams(): Promise<Team[]> {
   const [teams, players] = await Promise.all([rawTeams(), rawPlayers()]);

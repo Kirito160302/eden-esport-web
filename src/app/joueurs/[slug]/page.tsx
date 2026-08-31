@@ -24,8 +24,10 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
         <Breadcrumb items={[{ label: "Accueil", href: "/" }, { label: "Joueurs", href: "/joueurs" }, { label: p.pseudo }]} />
       </div></div>
       <section className="section"><div className="wrap grid-2" style={{ gridTemplateColumns: ".8fr 1.2fr", alignItems: "start" }}>
-        <div className="player-avatar" style={{ border: "1px solid var(--line-2)", aspectRatio: "4/5" }}>
-          <span className="ini" style={{ fontSize: "4rem" }}>{p.initials}</span>
+        <div className="player-avatar" style={{ border: "1px solid var(--line-2)", aspectRatio: "4/5", overflow: "hidden" }}>
+          {p.photo
+            ? <img src={p.photo} alt={p.pseudo} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            : <span className="ini" style={{ fontSize: "4rem" }}>{p.initials}</span>}
           <span className="tag role">{p.role}</span>
         </div>
         <div>
@@ -36,6 +38,13 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
             <div className="panel"><h3 style={{ fontSize: "1rem" }}>Équipe</h3><p><Link href={`/equipes/${p.teamSlug}`} style={{ color: "var(--lavender)" }}>{p.teamName} →</Link></p></div>
             <div className="panel"><h3 style={{ fontSize: "1rem" }}>Poste</h3><p>{p.role}</p></div>
           </div>
+          {p.socials && p.socials.length > 0 && (
+            <div style={{ marginTop: "1.4rem", display: "flex", gap: ".5rem", flexWrap: "wrap" }}>
+              {p.socials.map((s) => (
+                <a key={s.url} href={s.url} target="_blank" rel="noopener noreferrer" className="tag" style={{ cursor: "pointer" }}>{s.label} →</a>
+              ))}
+            </div>
+          )}
           <div style={{ marginTop: "1.6rem", display: "flex", gap: ".6rem" }}>
             <Link href="/esport" className="btn btn--ghost btn--sm">Voir l&apos;esport</Link>
             <Link href="/joueurs" className="btn btn--sm">Tous les joueurs</Link>

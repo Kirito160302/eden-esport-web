@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHero } from "@/components/ui";
 import EsportTabs from "@/components/EsportTabs";
-import { ESPORT } from "@/lib/esport-data";
+import { getEsportGames } from "@/lib/content";
 
 export const metadata: Metadata = { title: "Esport" };
 
-export default function EsportPage() {
+export default async function EsportPage() {
+  const games = await getEsportGames();
   return (
     <>
       <PageHero
@@ -15,7 +16,7 @@ export default function EsportPage() {
         lead="Une vision compétitive fondée sur la discipline, la progression et l'esprit collectif. Choisis un jeu pour découvrir l'équipe, son palmarès, son calendrier et ses replays."
       />
       <section className="section"><div className="wrap">
-        <EsportTabs games={ESPORT} />
+        <EsportTabs games={games} />
       </div></section>
       <section className="section" style={{ paddingTop: 0 }}><div className="wrap">
         <div className="panel" style={{ textAlign: "center", padding: "clamp(2.2rem,5vw,3.4rem)" }}>

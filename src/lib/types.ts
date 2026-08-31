@@ -23,6 +23,8 @@ export type Player = {
   teamSlug: string;
   initials: string;
   bio?: string;
+  photo?: string;                              // URL (Image mise en avant WordPress)
+  socials?: { label: string; url: string }[];  // réseaux (Twitch, X, Instagram…)
 };
 
 export type Event = {

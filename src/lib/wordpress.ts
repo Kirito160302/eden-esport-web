@@ -104,7 +104,7 @@ export async function wpTeams(): Promise<Team[] | null> {
     }`);
   if (!data?.teams?.nodes) return null;
   return data.teams.nodes.map((n) => {
-    const game = n.teamFields?.game || "";
+    const game = one(n.teamFields?.game);
     const gameKey = slugifyGame(game);
     return {
       slug: n.slug, name: n.title, game, gameKey, cls: gameKey,
@@ -116,27 +116,42 @@ export async function wpTeams(): Promise<Team[] | null> {
 }
 
 /* =============================== JOUEURS =============================== */
+// Champs ACF `playerFields` : fullName, role, game (select), bio (textarea),
+// reseaux (textarea "Label | url" par ligne), ordre (number).
+// Photo = Image mise en avant. Voir GUIDE-WORDPRESS-EQUIPES.md.
 export async function wpPlayers(): Promise<Player[] | null> {
   const data = await gql<{ players: { nodes: any[] } }>(`
     query Players {
       players(first: 100) {
-        nodes { slug title playerFields { role game fullName } }
+        nodes {
+          slug title
+          featuredImage { node { sourceUrl } }
+          playerFields { fullName role game bio reseaux ordre }
+        }
       }
     }`);
   if (!data?.players?.nodes) return null;
-  return data.players.nodes.map((n) => {
-    const game = n.playerFields?.game || "";
+  const list = data.players.nodes.map((n) => {
+    const f = n.playerFields || {};
+    const game = one(f.game);
     const title = n.title || "?";
+    const socials = parseLinks(f.reseaux || "").map((s) => ({ label: s.name, url: s.url }));
+    const ordre = typeof f.ordre === "number" ? f.ordre : (parseInt(f.ordre, 10) || 999);
     return {
+      _ordre: ordre,
       slug: n.slug, pseudo: title,
-      name: n.playerFields?.fullName || undefined,
-      role: n.playerFields?.role || "",
+      name: f.fullName || undefined,
+      role: f.role || "",
       game, gameKey: slugifyGame(game),
       teamName: "", teamSlug: "",
       initials: title.charAt(0).toUpperCase(),
-      bio: "Profil à compléter via le back-office.",
+      bio: f.bio || "",
+      photo: n.featuredImage?.node?.sourceUrl || undefined,
+      socials: socials.length ? socials : undefined,
     };
   });
+  list.sort((a, b) => a._ordre - b._ordre);
+  return list.map(({ _ordre, ...p }) => p as Player);
 }
 
 /* =============================== ÉVÉNEMENTS =============================== */
