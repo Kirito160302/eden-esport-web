@@ -60,6 +60,15 @@ const parseLinks = (txt: string): { name: string; url: string }[] =>
     return i === -1 ? { name: line, url: "#" } : { name: line.slice(0, i).trim(), url: line.slice(i + 1).trim() };
   });
 const csv = (txt: string): string[] => (txt || "").split(",").map((s) => s.trim()).filter(Boolean);
+// Réseaux joueurs — tolérant : "Label | url", "Label url", ou juste un lien collé.
+const parseSocials = (txt: string): { label: string; url: string }[] =>
+  (txt || "").split("\n").map((l) => l.trim()).filter(Boolean).map((line) => {
+    const i = line.indexOf("|");
+    if (i !== -1) return { label: line.slice(0, i).trim(), url: line.slice(i + 1).trim() };
+    const m = line.match(/https?:\/\/\S+/);
+    if (m) return { label: line.replace(m[0], "").trim(), url: m[0] };
+    return { label: "", url: line }; // ex "twitch.tv/xxx" sans http
+  }).filter((s) => s.url && s.url !== "#");
 // Les listes déroulantes ACF remontent parfois en tableau (["news"]) → on prend la 1re valeur.
 const one = (v: any): string => (Array.isArray(v) ? (v[0] ?? "") : (v ?? "")) as string;
 
@@ -151,7 +160,7 @@ export async function wpPlayers(): Promise<Player[] | null> {
     // pseudo = Titre du post ; si vide, on retombe sur le prénom/nom
     const pseudo = n.title || f.fullName || "Joueur";
     const fullName = f.fullName && f.fullName !== pseudo ? f.fullName : undefined;
-    const socials = parseLinks(f.reseaux || "").map((s) => ({ label: s.name, url: s.url }));
+    const socials = parseSocials(f.reseaux || "");
     const ordre = typeof f.ordreDaffichage === "number" ? f.ordreDaffichage : (parseInt(f.ordreDaffichage, 10) || 999);
     return {
       _ordre: ordre,

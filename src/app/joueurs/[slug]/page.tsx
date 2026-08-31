@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getPlayer, getPlayers } from "@/lib/content";
 import { Breadcrumb } from "@/components/ui";
+import SocialLinks from "@/components/SocialIcons";
 
 export async function generateStaticParams() {
   const players = await getPlayers();
@@ -38,13 +39,9 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
             <div className="panel"><h3 style={{ fontSize: "1rem" }}>Équipe</h3><p><Link href={`/equipes/${p.teamSlug}`} style={{ color: "var(--lavender)" }}>{p.teamName} →</Link></p></div>
             <div className="panel"><h3 style={{ fontSize: "1rem" }}>Poste</h3><p>{p.role}</p></div>
           </div>
-          {p.socials && p.socials.length > 0 && (
-            <div style={{ marginTop: "1.4rem", display: "flex", gap: ".5rem", flexWrap: "wrap" }}>
-              {p.socials.map((s) => (
-                <a key={s.url} href={s.url} target="_blank" rel="noopener noreferrer" className="tag" style={{ cursor: "pointer" }}>{s.label} →</a>
-              ))}
-            </div>
-          )}
+          <div style={{ marginTop: "1.4rem" }}>
+            <SocialLinks socials={p.socials} />
+          </div>
           <div style={{ marginTop: "1.6rem", display: "flex", gap: ".6rem" }}>
             <Link href="/esport" className="btn btn--ghost btn--sm">Voir l&apos;esport</Link>
             <Link href="/joueurs" className="btn btn--sm">Tous les joueurs</Link>

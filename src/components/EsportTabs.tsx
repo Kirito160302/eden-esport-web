@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Modal from "./Modal";
+import SocialLinks from "./SocialIcons";
 import type { EGame, EPlayer } from "@/lib/esport-data";
 
 function ytId(s: string): string {
@@ -129,13 +130,9 @@ export default function EsportTabs({ games }: { games: EGame[] }) {
               </div>
             </div>
             <div className="pl-socials">
-              {player.socials && player.socials.length > 0 ? (
-                player.socials.map((s) => (
-                  <a key={s.url} href={s.url} target="_blank" rel="noopener noreferrer" className="tag" style={{ cursor: "pointer" }}>{s.label} →</a>
-                ))
-              ) : (
-                <span className="tmp">Réseaux à venir.</span>
-              )}
+              {player.socials && player.socials.length > 0
+                ? <SocialLinks socials={player.socials} />
+                : <span className="tmp">Réseaux à venir.</span>}
             </div>
           </>
         )}

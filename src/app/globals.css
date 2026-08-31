@@ -1111,3 +1111,17 @@ main section,.finale{scroll-margin-top:90px}
 .jp-row--ext .jp-row-thumb img{width:100%;height:100%;object-fit:cover}
 .jp-row-ext{position:absolute;top:.6rem;right:.7rem;font-size:.85rem;color:var(--muted);opacity:.6;transition:opacity .15s,color .15s}
 .jp-row--ext:hover .jp-row-ext{opacity:1;color:var(--violet)}
+
+/* --- Icônes réseaux sociaux (fiches joueurs) --- */
+.soc-links{display:flex;gap:.55rem;flex-wrap:wrap;align-items:center}
+.soc-ico{width:38px;height:38px;display:grid;place-items:center;border-radius:50%;
+  border:1px solid var(--line-2);background:var(--surface);color:var(--muted);
+  transition:transform .15s,color .15s,border-color .15s,background .15s}
+.soc-ico svg{width:52%;height:52%}
+.soc-ico:hover{transform:translateY(-2px);color:#fff;border-color:var(--line-3)}
+.soc-twitch:hover{background:#9146ff;border-color:#9146ff}
+.soc-youtube:hover{background:#ff0000;border-color:#ff0000}
+.soc-instagram:hover{background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);border-color:#dc2743}
+.soc-tiktok:hover{background:#000;border-color:#25f4ee}
+.soc-discord:hover{background:#5865f2;border-color:#5865f2}
+.soc-x:hover{background:#000;border-color:#000}
