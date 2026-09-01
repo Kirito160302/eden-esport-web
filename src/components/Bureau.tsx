@@ -62,13 +62,18 @@ function Crud({ table, fields, defaults = {}, filter, orderBy = "created_at", de
       ? await supabase.from(table).update(payload).eq("id", editingId)
       : await supabase.from(table).insert(payload);
     setSaving(false);
-    if (!resp.error) { resetForm(); load(); }
+    if (!resp.error) { logAction(editingId ? "Modification" : "Ajout", payload[fields[0]?.key]); resetForm(); load(); }
     else alert("Enregistrement impossible : " + resp.error.message);
   }
   async function del(id: unknown) {
     if (!supabase || !confirm("Supprimer cette ligne ?")) return;
     await supabase.from(table).delete().eq("id", id);
+    logAction("Suppression", id);
     load();
+  }
+  async function logAction(action: string, detail: unknown) {
+    if (!supabase) return;
+    try { await supabase.from("activity_log").insert({ action, entity: table, detail: detail == null ? null : String(detail).slice(0, 140) }); } catch { /* table optionnelle */ }
   }
   async function toggleBool(row: Record<string, unknown>, key: string) {
     if (!supabase) return;
@@ -215,8 +220,10 @@ function UsersModule() {
   const load = useCallback(async () => {
     if (!supabase) return;
     setLoading(true);
-    const q = await supabase.from("profiles").select("id,pseudo,role,is_bureau").order("pseudo");
-    if (q.error) setErr(true); else setRows((q.data as Record<string, unknown>[]) || []);
+    type Q = { data: Record<string, unknown>[] | null; error: unknown };
+    let q = (await supabase.from("profiles").select("id,pseudo,role,is_bureau,bureau_role").order("pseudo")) as Q;
+    if (q.error) q = (await supabase.from("profiles").select("id,pseudo,role,is_bureau").order("pseudo")) as Q;
+    if (q.error) setErr(true); else { setErr(false); setRows(q.data || []); }
     setLoading(false);
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -226,20 +233,86 @@ function UsersModule() {
     if (error) alert("Modification impossible : " + error.message);
     load();
   }
+  async function setRole(r: Record<string, unknown>, role: string) {
+    if (!supabase) return;
+    const { error } = await supabase.rpc("set_bureau_role", { target: r.id, role_val: role || null });
+    if (error) alert("Modification impossible : " + error.message);
+    load();
+  }
   if (err) return <div className="bu-empty">Colonne « is_bureau » absente. Lance le SQL fourni.</div>;
   if (loading) return <p className="bu-muted">Chargement…</p>;
   return (
     <div>
-      <p className="bu-muted" style={{ marginBottom: ".8rem" }}>Donne ou retire l&apos;accès au bureau. (Les rôles joueur/staff de l&apos;espace équipe ne sont pas affectés.)</p>
+      <p className="bu-muted" style={{ marginBottom: ".8rem" }}>Donne l&apos;accès bureau et attribue un rôle. (Les rôles joueur/staff de l&apos;espace équipe ne sont pas affectés.)</p>
       <div className="bu-tablewrap"><table className="bu-table">
-        <thead><tr><th>Membre</th><th>Rôle équipe</th><th>Accès bureau</th></tr></thead>
+        <thead><tr><th>Membre</th><th>Espace équipe</th><th>Accès bureau</th><th>Rôle bureau</th></tr></thead>
         <tbody>{rows.map((r) => (
           <tr key={String(r.id)}>
             <td>{(r.pseudo as string) || "—"}</td>
             <td>{(r.role as string) === "staff" ? "Staff" : "Joueur"}</td>
             <td><button className={"bu-chip " + (r.is_bureau ? "ok" : "no")} onClick={() => toggle(r)}>{r.is_bureau ? "Oui" : "Non"}</button></td>
+            <td>
+              <select value={(r.bureau_role as string) || ""} onChange={(e) => setRole(r, e.target.value)} disabled={!r.is_bureau}>
+                {BUREAU_ROLES.map((ro) => <option key={ro} value={ro}>{ro || "—"}</option>)}
+              </select>
+            </td>
           </tr>
         ))}</tbody>
+      </table></div>
+    </div>
+  );
+}
+
+function RolesModule() {
+  return (
+    <div>
+      <p className="bu-muted" style={{ marginBottom: ".8rem" }}>Rôles de référence (attribution dans Administration → Utilisateurs). L&apos;application fine des restrictions par rubrique pourra être activée ensuite.</p>
+      <div className="bu-tablewrap"><table className="bu-table">
+        <thead><tr><th>Rôle</th><th>Accès prévu</th></tr></thead>
+        <tbody>{ROLE_MATRIX.map(([role, desc]) => <tr key={role}><td><strong>{role}</strong></td><td>{desc}</td></tr>)}</tbody>
+      </table></div>
+    </div>
+  );
+}
+
+function JournalModule() {
+  const [rows, setRows] = useState<Record<string, unknown>[]>([]);
+  const [who, setWho] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(false);
+  useEffect(() => {
+    (async () => {
+      if (!supabase) return;
+      setLoading(true);
+      const [l, p] = await Promise.all([
+        supabase.from("activity_log").select("*").order("at", { ascending: false }).limit(200),
+        supabase.from("profiles").select("id,pseudo"),
+      ]);
+      if (l.error) setErr(true);
+      else { setErr(false); setRows((l.data as Record<string, unknown>[]) || []); }
+      const m: Record<string, string> = {};
+      for (const x of (p.data as { id: string; pseudo: string }[]) || []) m[x.id] = x.pseudo;
+      setWho(m);
+      setLoading(false);
+    })();
+  }, []);
+  if (err) return <div className="bu-empty">Module non activé (table « activity_log » absente). Lance le SQL fourni.</div>;
+  if (loading) return <p className="bu-muted">Chargement…</p>;
+  return (
+    <div>
+      <p className="bu-muted" style={{ marginBottom: ".8rem" }}>Historique des actions (ajout, modification, suppression) enregistrées automatiquement.</p>
+      <div className="bu-tablewrap"><table className="bu-table">
+        <thead><tr><th>Date</th><th>Utilisateur</th><th>Action</th><th>Rubrique</th><th>Détail</th></tr></thead>
+        <tbody>{rows.length === 0 ? <tr><td colSpan={5} className="bu-muted">Aucune action enregistrée.</td></tr> :
+          rows.map((r) => (
+            <tr key={String(r.id)}>
+              <td>{new Date(r.at as string).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })}</td>
+              <td>{who[r.actor as string] || "—"}</td>
+              <td>{r.action as string}</td>
+              <td>{r.entity as string}</td>
+              <td>{(r.detail as string) || ""}</td>
+            </tr>
+          ))}</tbody>
       </table></div>
     </div>
   );
@@ -385,6 +458,32 @@ const loanFields: Field[] = [
   { key: "return_date", label: "Retour réel", type: "date" }, { key: "returned", label: "Rendu", type: "bool" },
   { key: "condition", label: "État au retour" }, { key: "notes", label: "Notes", type: "textarea" },
 ];
+// — Priorité 3 : Équipes —
+const playerFields: Field[] = [
+  { key: "pseudo", label: "Pseudo" }, { key: "real_name", label: "Nom" }, { key: "team", label: "Équipe" },
+  { key: "game", label: "Jeu" }, { key: "poste", label: "Poste" },
+  { key: "status", label: "Statut", type: "select", options: ["Actif", "Remplaçant", "Essai", "Inactif"] },
+  { key: "notes", label: "Infos internes", type: "textarea" },
+];
+const staffFields: Field[] = [
+  { key: "name", label: "Nom" }, { key: "role", label: "Rôle" }, { key: "team", label: "Équipe" },
+  { key: "notes", label: "Infos internes", type: "textarea" },
+];
+const competitionFields: Field[] = [
+  { key: "name", label: "Compétition" }, { key: "team", label: "Équipe" }, { key: "game", label: "Jeu" },
+  { key: "comp_date", label: "Date", type: "date" }, { key: "opponent", label: "Adversaire" },
+  { key: "result", label: "Résultat" }, { key: "ranking", label: "Classement" }, { key: "notes", label: "Notes", type: "textarea" },
+];
+
+const BUREAU_ROLES = ["", "Président", "Trésorier", "Secrétaire", "Responsable esport", "Responsable événements", "Bénévole"];
+const ROLE_MATRIX: [string, string][] = [
+  ["Président", "Accès global à toutes les rubriques."],
+  ["Trésorier", "Finance + Adhérents (cotisations)."],
+  ["Secrétaire", "Administratif + Documents + Réunions."],
+  ["Responsable esport", "Équipes + Joueurs + Compétitions."],
+  ["Responsable événements", "Événements + Matériel."],
+  ["Bénévole", "Tâches + événements autorisés."],
+];
 
 type Sub = { key: string; label: string; render: () => React.ReactNode };
 type Section = { key: string; icon: string; label: string; subs: Sub[] };
@@ -421,8 +520,9 @@ const SECTIONS: Section[] = [
     { key: "suivi", label: "Suivi", render: () => <Crud table="partner_followups" fields={followupFields} orderBy="due_date" desc={false} /> },
   ] },
   { key: "teams", icon: "🎮", label: "Équipes", subs: [
-    { key: "j", label: "Joueurs & staff", render: () => <div className="bu-empty">Les joueurs, le staff et les disponibilités se gèrent dans l&apos;<a href="/espace" style={{ color: "var(--lavender)" }}>espace équipe</a>.</div> },
-    { key: "compet", label: "Compétitions", render: () => <Placeholder label="Compétitions" /> },
+    { key: "j", label: "Joueurs", render: () => <Crud table="bu_players" fields={playerFields} orderBy="pseudo" desc={false} /> },
+    { key: "staff", label: "Staff", render: () => <Crud table="bu_staff" fields={staffFields} orderBy="name" desc={false} /> },
+    { key: "compet", label: "Compétitions", render: () => <Crud table="bu_competitions" fields={competitionFields} orderBy="comp_date" /> },
   ] },
   { key: "material", icon: "📦", label: "Matériel", subs: [
     { key: "inv", label: "Inventaire", render: () => <Crud table="equipment" fields={equipmentFields} orderBy="name" desc={false} /> },
@@ -430,8 +530,8 @@ const SECTIONS: Section[] = [
   ] },
   { key: "admin", icon: "⚙️", label: "Administration", subs: [
     { key: "users", label: "Utilisateurs & accès", render: () => <UsersModule /> },
-    { key: "roles", label: "Rôles / permissions", render: () => <Placeholder label="Rôles / permissions" /> },
-    { key: "journal", label: "Journal des actions", render: () => <Placeholder label="Journal des actions" /> },
+    { key: "roles", label: "Rôles / permissions", render: () => <RolesModule /> },
+    { key: "journal", label: "Journal des actions", render: () => <JournalModule /> },
   ] },
 ];
 

@@ -318,3 +318,45 @@ do $$ declare t text; begin
     execute format('create policy "%s_bureau_all" on public.%I for all to authenticated using (public.is_bureau()) with check (public.is_bureau())', t, t);
   end loop;
 end $$;
+
+-- ============================================================
+--  BUREAU — Priorité 3 : Équipes, Rôles, Journal des actions
+-- ============================================================
+alter table public.profiles add column if not exists bureau_role text;
+
+create or replace function public.set_bureau_role(target uuid, role_val text) returns void
+  language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_bureau() then raise exception 'Réservé au bureau'; end if;
+  update public.profiles set bureau_role = role_val where id = target;
+end; $$;
+grant execute on function public.set_bureau_role(uuid, text) to authenticated;
+
+create table if not exists public.bu_players (
+  id uuid primary key default gen_random_uuid(),
+  pseudo text, real_name text, team text, game text, poste text, status text, notes text,
+  created_at timestamptz default now()
+);
+create table if not exists public.bu_staff (
+  id uuid primary key default gen_random_uuid(),
+  name text, role text, team text, notes text, created_at timestamptz default now()
+);
+create table if not exists public.bu_competitions (
+  id uuid primary key default gen_random_uuid(),
+  name text, team text, game text, comp_date date, opponent text, result text, ranking text, notes text,
+  created_at timestamptz default now()
+);
+create table if not exists public.activity_log (
+  id uuid primary key default gen_random_uuid(),
+  actor uuid default auth.uid(),
+  action text, entity text, detail text,
+  at timestamptz default now()
+);
+
+do $$ declare t text; begin
+  foreach t in array array['bu_players','bu_staff','bu_competitions','activity_log'] loop
+    execute format('alter table public.%I enable row level security', t);
+    execute format('drop policy if exists "%s_bureau_all" on public.%I', t, t);
+    execute format('create policy "%s_bureau_all" on public.%I for all to authenticated using (public.is_bureau()) with check (public.is_bureau())', t, t);
+  end loop;
+end $$;
