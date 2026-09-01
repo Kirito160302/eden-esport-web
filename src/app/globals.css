@@ -1262,3 +1262,17 @@ main section,.finale{scroll-margin-top:90px}
 .esp-lineup-fields input{flex:1;min-width:110px;padding:.5rem .6rem;border-radius:8px;border:1px solid var(--line-2);background:var(--surface);color:var(--text);font:inherit}
 .esp-starter{border:1px solid var(--line-2);background:var(--surface);color:var(--muted);border-radius:8px;padding:.5rem .7rem;cursor:pointer;font:inherit;font-weight:600;font-size:.82rem;white-space:nowrap}
 .esp-starter.on{background:rgba(125,92,255,.18);color:var(--lavender);border-color:var(--violet)}
+
+/* --- Visuels des jeux en fond des cartes d'équipes (accueil) --- */
+.team-card.valorant::before{
+  background:
+    radial-gradient(circle at 70% 15%,rgba(255,70,85,.30),transparent 55%),
+    linear-gradient(160deg,rgba(20,6,12,.35),rgba(11,11,18,.72)),
+    url(/games/valorant-art.jpg) center/cover no-repeat;
+}
+.team-card.lol::before{
+  background:
+    radial-gradient(circle at 70% 15%,rgba(90,140,255,.26),transparent 55%),
+    linear-gradient(160deg,rgba(9,16,34,.32),rgba(11,11,18,.70)),
+    url(/games/lol-art.jpg) center/cover no-repeat;
+}
