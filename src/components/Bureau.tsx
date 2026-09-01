@@ -346,6 +346,45 @@ const docFields = (cat: string): Field[] => [
   { key: "doc_date", label: "Date", type: "date" }, { key: "notes", label: "Notes", type: "textarea" },
   { key: "category", label: "Catégorie", type: "select", options: DOC_CATS },
 ];
+// — Priorité 2 —
+const eventFields: Field[] = [
+  { key: "name", label: "Nom" }, { key: "event_date", label: "Date", type: "date" }, { key: "event_time", label: "Horaire" },
+  { key: "place", label: "Lieu" }, { key: "type", label: "Type" }, { key: "responsible", label: "Responsable" },
+  { key: "notes", label: "Notes", type: "textarea" },
+];
+const participantFields: Field[] = [
+  { key: "event", label: "Événement" }, { key: "name", label: "Nom" },
+  { key: "role", label: "Rôle", type: "select", options: ["Participant", "Bénévole", "Staff"] },
+  { key: "present", label: "Présent", type: "bool" }, { key: "notes", label: "Infos", type: "textarea" },
+];
+const eventTaskFields: Field[] = [
+  { key: "event", label: "Événement" }, { key: "task", label: "Tâche" },
+  { key: "responsible", label: "Responsable" }, { key: "done", label: "Fait", type: "bool" },
+  { key: "notes", label: "Notes", type: "textarea" },
+];
+const contractFields: Field[] = [
+  { key: "partner", label: "Partenaire" }, { key: "start_date", label: "Début", type: "date" }, { key: "end_date", label: "Fin", type: "date" },
+  { key: "amount", label: "Montant / valeur", type: "number" },
+  { key: "status", label: "Statut", type: "select", options: ["En cours", "À renouveler", "Terminé"] },
+  { key: "file", label: "Fichier (lien)" }, { key: "counterparts", label: "Contreparties", type: "textarea" }, { key: "notes", label: "Notes", type: "textarea" },
+];
+const followupFields: Field[] = [
+  { key: "partner", label: "Partenaire" }, { key: "action", label: "Action / contrepartie" },
+  { key: "due_date", label: "Échéance", type: "date" }, { key: "done", label: "Fait", type: "bool" }, { key: "notes", label: "Notes", type: "textarea" },
+];
+const equipmentFields: Field[] = [
+  { key: "name", label: "Matériel" }, { key: "inv_number", label: "N° inventaire" }, { key: "category", label: "Catégorie" },
+  { key: "quantity", label: "Qté", type: "number" },
+  { key: "status", label: "État", type: "select", options: ["Disponible", "Prêté", "Maintenance", "Hors service"] },
+  { key: "location", label: "Emplacement" }, { key: "responsible", label: "Responsable" },
+  { key: "purchase_date", label: "Achat", type: "date" }, { key: "invoice", label: "Facture (lien)" }, { key: "notes", label: "Notes", type: "textarea" },
+];
+const loanFields: Field[] = [
+  { key: "item", label: "Matériel" }, { key: "borrower", label: "Emprunteur" },
+  { key: "out_date", label: "Sortie", type: "date" }, { key: "due_date", label: "Retour prévu", type: "date" },
+  { key: "return_date", label: "Retour réel", type: "date" }, { key: "returned", label: "Rendu", type: "bool" },
+  { key: "condition", label: "État au retour" }, { key: "notes", label: "Notes", type: "textarea" },
+];
 
 type Sub = { key: string; label: string; render: () => React.ReactNode };
 type Section = { key: string; icon: string; label: string; subs: Sub[] };
@@ -364,9 +403,9 @@ const SECTIONS: Section[] = [
     { key: "budget", label: "Budget", render: () => <BudgetModule /> },
   ] },
   { key: "events", icon: "📅", label: "Événements", subs: [
-    { key: "cal", label: "Calendrier", render: () => <Placeholder label="Calendrier événements" /> },
-    { key: "part", label: "Participants", render: () => <Placeholder label="Participants" /> },
-    { key: "orga", label: "Organisation", render: () => <Placeholder label="Organisation" /> },
+    { key: "cal", label: "Calendrier", render: () => <Crud table="org_events" fields={eventFields} orderBy="event_date" /> },
+    { key: "part", label: "Participants", render: () => <Crud table="event_participants" fields={participantFields} /> },
+    { key: "orga", label: "Organisation", render: () => <Crud table="event_tasks" fields={eventTaskFields} /> },
   ] },
   { key: "docs", icon: "📄", label: "Documents", subs: DOC_CATS.map((c) => ({
     key: c, label: c, render: () => <Crud table="documents" fields={docFields(c)} filter={(r) => r.category === c} defaults={{ category: c }} orderBy="doc_date" />,
@@ -378,25 +417,16 @@ const SECTIONS: Section[] = [
       { key: "status", label: "Statut", type: "select", options: ["Prospect", "Actif", "Terminé"] },
       { key: "notes", label: "Notes", type: "textarea" },
     ]} orderBy="name" desc={false} /> },
-    { key: "contrats", label: "Contrats", render: () => <Placeholder label="Contrats" /> },
-    { key: "suivi", label: "Suivi", render: () => <Placeholder label="Suivi" /> },
+    { key: "contrats", label: "Contrats", render: () => <Crud table="partner_contracts" fields={contractFields} orderBy="end_date" /> },
+    { key: "suivi", label: "Suivi", render: () => <Crud table="partner_followups" fields={followupFields} orderBy="due_date" desc={false} /> },
   ] },
   { key: "teams", icon: "🎮", label: "Équipes", subs: [
     { key: "j", label: "Joueurs & staff", render: () => <div className="bu-empty">Les joueurs, le staff et les disponibilités se gèrent dans l&apos;<a href="/espace" style={{ color: "var(--lavender)" }}>espace équipe</a>.</div> },
     { key: "compet", label: "Compétitions", render: () => <Placeholder label="Compétitions" /> },
   ] },
   { key: "material", icon: "📦", label: "Matériel", subs: [
-    { key: "inv", label: "Inventaire", render: () => <Crud table="equipment" fields={[
-      { key: "name", label: "Matériel" }, { key: "category", label: "Catégorie" },
-      { key: "quantity", label: "Quantité", type: "number" },
-      { key: "status", label: "État", type: "select", options: ["Neuf", "Bon", "Usé", "HS"] },
-      { key: "notes", label: "Notes", type: "textarea" },
-    ]} orderBy="name" desc={false} /> },
-    { key: "prets", label: "Prêts", render: () => <Crud table="loans" fields={[
-      { key: "item", label: "Matériel" }, { key: "borrower", label: "Emprunteur" },
-      { key: "out_date", label: "Sortie", type: "date" }, { key: "due_date", label: "Retour prévu", type: "date" },
-      { key: "returned", label: "Rendu", type: "bool" },
-    ]} orderBy="out_date" /> },
+    { key: "inv", label: "Inventaire", render: () => <Crud table="equipment" fields={equipmentFields} orderBy="name" desc={false} /> },
+    { key: "prets", label: "Prêts", render: () => <Crud table="loans" fields={loanFields} orderBy="out_date" /> },
   ] },
   { key: "admin", icon: "⚙️", label: "Administration", subs: [
     { key: "users", label: "Utilisateurs & accès", render: () => <UsersModule /> },

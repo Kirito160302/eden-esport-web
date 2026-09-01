@@ -272,3 +272,49 @@ do $$ declare t text; begin
     execute format('create policy "%s_bureau_all" on public.%I for all to authenticated using (public.is_bureau()) with check (public.is_bureau())', t, t);
   end loop;
 end $$;
+
+-- ============================================================
+--  BUREAU — Priorité 2 : Événements, Partenaires (contrats/suivi), Matériel
+-- ============================================================
+create table if not exists public.org_events (
+  id uuid primary key default gen_random_uuid(),
+  name text, event_date date, event_time text, place text, type text, responsible text, notes text,
+  created_at timestamptz default now()
+);
+create table if not exists public.event_participants (
+  id uuid primary key default gen_random_uuid(),
+  event text, name text, role text, present boolean default false, notes text,
+  created_at timestamptz default now()
+);
+create table if not exists public.event_tasks (
+  id uuid primary key default gen_random_uuid(),
+  event text, task text, responsible text, done boolean default false, notes text,
+  created_at timestamptz default now()
+);
+create table if not exists public.partner_contracts (
+  id uuid primary key default gen_random_uuid(),
+  partner text, start_date date, end_date date, amount numeric, status text, file text, counterparts text, notes text,
+  created_at timestamptz default now()
+);
+create table if not exists public.partner_followups (
+  id uuid primary key default gen_random_uuid(),
+  partner text, action text, due_date date, done boolean default false, notes text,
+  created_at timestamptz default now()
+);
+alter table public.equipment
+  add column if not exists inv_number text,
+  add column if not exists location text,
+  add column if not exists responsible text,
+  add column if not exists purchase_date date,
+  add column if not exists invoice text;
+alter table public.loans
+  add column if not exists return_date date,
+  add column if not exists condition text;
+
+do $$ declare t text; begin
+  foreach t in array array['org_events','event_participants','event_tasks','partner_contracts','partner_followups'] loop
+    execute format('alter table public.%I enable row level security', t);
+    execute format('drop policy if exists "%s_bureau_all" on public.%I', t, t);
+    execute format('create policy "%s_bureau_all" on public.%I for all to authenticated using (public.is_bureau()) with check (public.is_bureau())', t, t);
+  end loop;
+end $$;
