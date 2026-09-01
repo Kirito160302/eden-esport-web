@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { getSupabase, SUPABASE_ENABLED } from "@/lib/supabase";
-import type { Profile, Seance, Availability, SessionType, Announcement } from "@/lib/espace-types";
+import type { Profile, Seance, Availability, SessionType, Announcement, Lineup } from "@/lib/espace-types";
 import SocialLinks from "./SocialIcons";
 
 const supabase = getSupabase();
@@ -203,6 +203,129 @@ function CreateForm({ onCreated, defaultTeam }: { onCreated: () => void; default
 }
 
 /* ------------------------------------------------------------------ */
+/*  FEUILLE DE MATCH — composition + résultat                          */
+/* ------------------------------------------------------------------ */
+type LineupRow = { in: boolean; role: string; pick: string; starter: boolean };
+
+function LineupEditor({ s, members, lineups, onDone }: {
+  s: Seance; members: Record<string, Profile>;
+  lineups: Lineup[]; onDone: () => void;
+}) {
+  const memberList = Object.values(members).sort((a, b) => (a.pseudo || "").localeCompare(b.pseudo || ""));
+  const [rows, setRows] = useState<Record<string, LineupRow>>(() => {
+    const init: Record<string, LineupRow> = {};
+    for (const m of memberList) {
+      const ex = lineups.find((l) => l.user_id === m.id);
+      init[m.id] = { in: !!ex, role: ex?.role ?? m.poste ?? "", pick: ex?.pick ?? "", starter: ex ? ex.starter : true };
+    }
+    return init;
+  });
+  const [su, setSu] = useState<string>(s.score_us != null ? String(s.score_us) : "");
+  const [st, setSt] = useState<string>(s.score_them != null ? String(s.score_them) : "");
+  const [maps, setMaps] = useState<string>(s.maps ?? "");
+  const [saving, setSaving] = useState(false);
+  const upd = (id: string, k: keyof LineupRow, v: string | boolean) => setRows((p) => ({ ...p, [id]: { ...p[id], [k]: v } }));
+
+  async function save() {
+    if (!supabase) return;
+    setSaving(true);
+    await supabase.from("sessions").update({
+      score_us: su === "" ? null : Number(su),
+      score_them: st === "" ? null : Number(st),
+      maps: maps || null,
+    }).eq("id", s.id);
+    const entries = Object.entries(rows);
+    const selected = entries.filter(([, r]) => r.in);
+    let ordre = 0;
+    for (const [id, r] of selected) {
+      await supabase.from("match_lineup").upsert(
+        { session_id: s.id, user_id: id, role: r.role || null, pick: r.pick || null, starter: r.starter, ordre: ordre++ },
+        { onConflict: "session_id,user_id" }
+      );
+    }
+    const selIds = new Set(selected.map(([id]) => id));
+    for (const [id] of entries) if (!selIds.has(id)) {
+      await supabase.from("match_lineup").delete().eq("session_id", s.id).eq("user_id", id);
+    }
+    setSaving(false);
+    onDone();
+  }
+
+  return (
+    <div className="esp-lineup-edit">
+      <div className="esp-row">
+        <div className="field"><label>Notre score</label><input type="number" min={0} value={su} onChange={(e) => setSu(e.target.value)} /></div>
+        <div className="field"><label>Score adverse</label><input type="number" min={0} value={st} onChange={(e) => setSt(e.target.value)} /></div>
+      </div>
+      <div className="field"><label>Map(s)</label><input value={maps} onChange={(e) => setMaps(e.target.value)} placeholder="ex : Ascent, Bind" /></div>
+      <div className="esp-lineup-tbl">
+        {memberList.length === 0 && <p className="muted">Aucun joueur dans l&apos;équipe. Ajoute des membres d&apos;abord.</p>}
+        {memberList.map((m) => {
+          const r = rows[m.id];
+          return (
+            <div className={"esp-lineup-r" + (r.in ? " on" : "")} key={m.id}>
+              <label className="esp-lineup-check">
+                <input type="checkbox" checked={r.in} onChange={(e) => upd(m.id, "in", e.target.checked)} />
+                <strong>{m.pseudo}</strong>
+              </label>
+              {r.in && (
+                <div className="esp-lineup-fields">
+                  <input value={r.role} onChange={(e) => upd(m.id, "role", e.target.value)} placeholder="Poste" />
+                  <input value={r.pick} onChange={(e) => upd(m.id, "pick", e.target.value)} placeholder="Agent / Champion" />
+                  <button type="button" className={"esp-starter" + (r.starter ? " on" : "")} onClick={() => upd(m.id, "starter", !r.starter)}>
+                    {r.starter ? "Titulaire" : "Remplaçant"}
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ display: "flex", gap: ".6rem", marginTop: ".8rem" }}>
+        <button className="btn btn--sm" onClick={save} disabled={saving}>{saving ? "Enregistrement…" : "Enregistrer la feuille"}</button>
+        <button className="btn btn--ghost btn--sm" onClick={onDone}>Fermer</button>
+      </div>
+    </div>
+  );
+}
+
+function MatchCompo({ s, isStaff, members, lineups, onChange }: {
+  s: Seance; isStaff: boolean; members: Record<string, Profile>;
+  lineups: Lineup[]; onChange: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const rows = lineups.filter((l) => l.session_id === s.id).sort((a, b) => a.ordre - b.ordre);
+  const hasScore = s.score_us != null && s.score_them != null;
+  const res = hasScore ? (s.score_us! > s.score_them! ? "win" : s.score_us! < s.score_them! ? "loss" : "draw") : null;
+
+  if (editing) return <LineupEditor s={s} members={members} lineups={rows} onDone={() => { setEditing(false); onChange(); }} />;
+
+  return (
+    <div className="esp-compo">
+      {res && (
+        <span className={"esp-result esp-" + res}>
+          {res === "win" ? "Victoire" : res === "loss" ? "Défaite" : "Nul"} {s.score_us}–{s.score_them}
+        </span>
+      )}
+      {s.maps ? <span className="muted" style={{ fontSize: ".85rem", marginLeft: ".5rem" }}>{s.maps}</span> : null}
+      {rows.length > 0 ? (
+        <ul className="esp-compo-list">
+          {rows.map((l) => (
+            <li key={l.user_id}>
+              <strong>{members[l.user_id]?.pseudo || "Joueur"}</strong>
+              {l.role ? <span className="muted"> · {l.role}</span> : null}
+              {l.pick ? <span className="esp-pick"> · {l.pick}</span> : null}
+              {!l.starter ? <span className="muted"> (remplaçant)</span> : null}
+            </li>
+          ))}
+        </ul>
+      ) : (!res && <span className="muted" style={{ fontSize: ".85rem" }}>Compo non renseignée.</span>)}
+      {isStaff && <button type="button" className="esp-toggle" onClick={() => setEditing(true)} style={{ marginLeft: 0 }}>Composer / résultat</button>}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Carte d'une séance : infos + dispos                                */
 /* ------------------------------------------------------------------ */
 const STATUS = [
@@ -212,12 +335,13 @@ const STATUS = [
 ] as const;
 
 function SeanceCard({
-  s, me, isStaff, avails, profiles, onRsvp, onDelete,
+  s, me, isStaff, avails, profiles, members, lineups, onRsvp, onDelete, onChange,
 }: {
   s: Seance; me: string; isStaff: boolean;
   avails: Availability[]; profiles: Record<string, Profile>;
+  members: Record<string, Profile>; lineups: Lineup[];
   onRsvp: (sessionId: string, status: "yes" | "no" | "maybe") => void;
-  onDelete: (id: string) => void;
+  onDelete: (id: string) => void; onChange: () => void;
 }) {
   const [showList, setShowList] = useState(false);
   const mine = avails.find((a) => a.session_id === s.id && a.user_id === me)?.status;
@@ -236,6 +360,10 @@ function SeanceCard({
         {s.location ? <span>· {s.location}</span> : null}
       </p>
       {s.notes ? <p className="esp-notes">{s.notes}</p> : null}
+
+      {s.type === "match" && (
+        <MatchCompo s={s} isStaff={isStaff} members={members} lineups={lineups} onChange={onChange} />
+      )}
 
       {/* Ma réponse */}
       <div className="esp-rsvp">
@@ -709,6 +837,7 @@ function Dashboard({ profile, onLogout }: { profile: Profile; onLogout: () => vo
   const [avails, setAvails] = useState<Availability[]>([]);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
   const [anns, setAnns] = useState<Announcement[]>([]);
+  const [lineups, setLineups] = useState<Lineup[]>([]);
   const [loading, setLoading] = useState(true);
   const isStaff = profile.role === "staff";
 
@@ -716,11 +845,12 @@ function Dashboard({ profile, onLogout }: { profile: Profile; onLogout: () => vo
     if (!supabase) return;
     setLoading(true);
     const since = new Date(Date.now() - 40 * 24 * 3600 * 1000).toISOString();
-    const [ssR, avR, prof, annR] = await Promise.all([
+    const [ssR, avR, prof, annR, luR] = await Promise.all([
       supabase.from("sessions").select("*").gte("starts_at", since).order("starts_at", { ascending: true }),
       supabase.from("availabilities").select("*"),
       fetchProfiles(),
       supabase.from("announcements").select("*").order("created_at", { ascending: false }),
+      supabase.from("match_lineup").select("*"),
     ]);
     setSeances((ssR.data as Seance[]) || []);
     setAvails((avR.data as Availability[]) || []);
@@ -728,6 +858,7 @@ function Dashboard({ profile, onLogout }: { profile: Profile; onLogout: () => vo
     for (const p of prof) map[p.id] = p;
     setProfiles(map);
     setAnns((annR.data as Announcement[]) || []);
+    setLineups((luR.data as Lineup[]) || []);
     setLoading(false);
   }, []);
 
@@ -819,7 +950,8 @@ function Dashboard({ profile, onLogout }: { profile: Profile; onLogout: () => vo
             <div className="esp-list">
               {upcoming.map((s) => (
                 <SeanceCard key={s.id} s={s} me={profile.id} isStaff={isStaff}
-                  avails={avails} profiles={profiles} onRsvp={onRsvp} onDelete={onDelete} />
+                  avails={avails} profiles={profiles} members={teamMembers} lineups={lineups}
+                  onRsvp={onRsvp} onDelete={onDelete} onChange={load} />
               ))}
             </div>
           )}

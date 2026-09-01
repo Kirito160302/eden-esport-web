@@ -146,3 +146,32 @@ create policy "ann_staff_del" on public.announcements for delete to authenticate
 -- Sécurité : un joueur ne modifie QUE les champs "profil" (jamais role/team via le site)
 revoke update on public.profiles from authenticated;
 grant  update (pseudo, poste, rank, photo_url, socials, bio) on public.profiles to authenticated;
+
+-- ============================================================
+--  AJOUT — Feuilles de match : résultat + composition
+-- ============================================================
+alter table public.sessions
+  add column if not exists score_us   int,
+  add column if not exists score_them int,
+  add column if not exists maps       text,
+  add column if not exists vod        text;
+
+create table if not exists public.match_lineup (
+  id         uuid primary key default gen_random_uuid(),
+  session_id uuid not null references public.sessions(id) on delete cascade,
+  user_id    uuid not null references auth.users(id) on delete cascade,
+  role       text,
+  pick       text,                 -- agent / champion
+  starter    boolean not null default true,
+  ordre      int not null default 0,
+  unique (session_id, user_id)
+);
+alter table public.match_lineup enable row level security;
+drop policy if exists "lineup_read"      on public.match_lineup;
+drop policy if exists "lineup_staff_ins" on public.match_lineup;
+drop policy if exists "lineup_staff_upd" on public.match_lineup;
+drop policy if exists "lineup_staff_del" on public.match_lineup;
+create policy "lineup_read"      on public.match_lineup for select to authenticated using (true);
+create policy "lineup_staff_ins" on public.match_lineup for insert to authenticated with check (public.is_staff());
+create policy "lineup_staff_upd" on public.match_lineup for update to authenticated using (public.is_staff());
+create policy "lineup_staff_del" on public.match_lineup for delete to authenticated using (public.is_staff());

@@ -1244,3 +1244,21 @@ main section,.finale{scroll-margin-top:90px}
 .esp-member-bio{font-size:.85rem;color:var(--muted);margin:.4rem 0}
 .esp-member .soc-links{margin-top:.5rem}
 .esp-member .soc-ico{width:30px;height:30px}
+
+/* --- Feuille de match : compo + résultat --- */
+.esp-compo{margin:.7rem 0;padding-top:.7rem;border-top:1px solid var(--line-2)}
+.esp-result{font-size:.78rem;font-weight:800;text-transform:uppercase;letter-spacing:.03em;padding:.2rem .55rem;border-radius:6px}
+.esp-result.esp-win{background:rgba(31,122,77,.25);color:#5bd08d}
+.esp-result.esp-loss{background:rgba(161,54,54,.25);color:#e88a8a}
+.esp-result.esp-draw{background:var(--surface-2);color:var(--muted)}
+.esp-compo-list{list-style:none;margin:.6rem 0 .4rem;padding:0;display:flex;flex-direction:column;gap:.25rem;font-size:.9rem}
+.esp-pick{color:var(--lavender)}
+.esp-lineup-edit{margin:.7rem 0;padding-top:.7rem;border-top:1px solid var(--line-2)}
+.esp-lineup-tbl{display:flex;flex-direction:column;gap:.4rem;margin-top:.6rem}
+.esp-lineup-r{border:1px solid var(--line-2);border-radius:10px;padding:.5rem .7rem;background:var(--surface-2)}
+.esp-lineup-r.on{border-color:var(--violet)}
+.esp-lineup-check{display:flex;align-items:center;gap:.5rem;cursor:pointer}
+.esp-lineup-fields{display:flex;gap:.5rem;margin-top:.5rem;flex-wrap:wrap}
+.esp-lineup-fields input{flex:1;min-width:110px;padding:.5rem .6rem;border-radius:8px;border:1px solid var(--line-2);background:var(--surface);color:var(--text);font:inherit}
+.esp-starter{border:1px solid var(--line-2);background:var(--surface);color:var(--muted);border-radius:8px;padding:.5rem .7rem;cursor:pointer;font:inherit;font-weight:600;font-size:.82rem;white-space:nowrap}
+.esp-starter.on{background:rgba(125,92,255,.18);color:var(--lavender);border-color:var(--violet)}

@@ -36,6 +36,22 @@ export type Seance = {
   location: string | null;
   notes: string | null;
   created_by: string | null;
+  // Résultat de match (optionnel)
+  score_us?: number | null;
+  score_them?: number | null;
+  maps?: string | null;
+  vod?: string | null;
+};
+
+// Composition d'un match : un joueur aligné, son poste, son agent/champion
+export type Lineup = {
+  id?: string;
+  session_id: string;
+  user_id: string;
+  role: string | null;
+  pick: string | null;      // agent / champion
+  starter: boolean;         // titulaire (true) ou remplaçant (false)
+  ordre: number;
 };
 
 export type Availability = {
