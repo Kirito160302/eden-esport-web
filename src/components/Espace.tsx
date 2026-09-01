@@ -223,9 +223,9 @@ function SeanceCard({
 type WeekSlot = { user_id: string; weekday: number; slot: string; status: "yes" | "maybe" };
 const DAYS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
 const SLOTS = [
-  { key: "aprem", label: "Après-midi" },
-  { key: "soir", label: "Soirée" },
-  { key: "nuit", label: "Nuit" },
+  { key: "aprem", label: "Après-midi", hours: "14h–18h" },
+  { key: "soir", label: "Soirée", hours: "18h–21h" },
+  { key: "nuit", label: "Nuit", hours: "21h–00h" },
 ] as const;
 
 function WeeklyAvailability({ profile, profiles }: { profile: Profile; profiles: Record<string, Profile> }) {
@@ -286,7 +286,7 @@ function WeeklyAvailability({ profile, profiles }: { profile: Profile; profiles:
             C&apos;est ta dispo <em>habituelle</em> de la semaine (modifiable à tout moment).
           </p>
           <div className="esp-week">
-            <div className="esp-week-head"><span></span>{SLOTS.map((s) => <span key={s.key}>{s.label}</span>)}</div>
+            <div className="esp-week-head"><span></span>{SLOTS.map((s) => <span key={s.key}>{s.label}<em className="esp-hrs">{s.hours}</em></span>)}</div>
             {DAYS.map((d, wd) => (
               <div className="esp-week-row" key={wd}>
                 <span className="esp-week-day">{d}</span>
@@ -311,7 +311,7 @@ function WeeklyAvailability({ profile, profiles }: { profile: Profile; profiles:
             Nombre de personnes dispo par créneau. Clique une case pour voir qui.
           </p>
           <div className="esp-week">
-            <div className="esp-week-head"><span></span>{SLOTS.map((s) => <span key={s.key}>{s.label}</span>)}</div>
+            <div className="esp-week-head"><span></span>{SLOTS.map((s) => <span key={s.key}>{s.label}<em className="esp-hrs">{s.hours}</em></span>)}</div>
             {DAYS.map((d, wd) => (
               <div className="esp-week-row" key={wd}>
                 <span className="esp-week-day">{d}</span>
@@ -338,10 +338,10 @@ function WeeklyAvailability({ profile, profiles }: { profile: Profile; profiles:
             const wd = parseInt(wdS, 10);
             const yes = people(wd, slK, "yes");
             const maybe = people(wd, slK, "maybe");
-            const lbl = SLOTS.find((x) => x.key === slK)?.label;
+            const sl = SLOTS.find((x) => x.key === slK);
             return (
               <div className="esp-card" style={{ marginTop: "1rem" }}>
-                <h3 style={{ fontSize: "1rem", marginBottom: ".6rem" }}>{DAYS[wd]} — {lbl}</h3>
+                <h3 style={{ fontSize: "1rem", marginBottom: ".6rem" }}>{DAYS[wd]} — {sl?.label} <span className="muted" style={{ fontWeight: 400 }}>({sl?.hours})</span></h3>
                 {yes.length === 0 && maybe.length === 0 ? (
                   <p className="muted">Personne pour l&apos;instant.</p>
                 ) : (
