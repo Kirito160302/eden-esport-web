@@ -1333,3 +1333,7 @@ main section,.finale{scroll-margin-top:90px}
   .bu-side{display:none}
   .bu-side.open{display:block}
 }
+.bu-search{flex:1;min-width:120px;max-width:260px;padding:.45rem .7rem;border-radius:9px;border:1px solid var(--line-2);background:var(--surface-2);color:var(--text);font:inherit;font-size:.85rem}
+.bu-rowact{white-space:nowrap;display:flex;gap:.3rem}
+.bu-edit{background:none;border:none;color:var(--lavender);cursor:pointer;font-size:.9rem;opacity:.75}
+.bu-edit:hover{opacity:1}

@@ -24,25 +24,33 @@ function Crud({ table, fields, defaults = {}, filter, orderBy = "created_at", de
   const [open, setOpen] = useState(false);
   const [f, setF] = useState<Record<string, unknown>>({ ...defaults });
   const [saving, setSaving] = useState(false);
+  const [q, setQ] = useState("");
+  const [editingId, setEditingId] = useState<unknown>(null);
 
   const load = useCallback(async () => {
     if (!supabase) return;
     setLoading(true);
-    const q = await supabase.from(table).select("*").order(orderBy, { ascending: !desc });
-    if (q.error) { setErr(true); setRows([]); }
-    else { setErr(false); setRows(((q.data as Record<string, unknown>[]) || []).filter((r) => (filter ? filter(r) : true))); }
+    const res = await supabase.from(table).select("*").order(orderBy, { ascending: !desc });
+    if (res.error) { setErr(true); setRows([]); }
+    else { setErr(false); setRows(((res.data as Record<string, unknown>[]) || []).filter((r) => (filter ? filter(r) : true))); }
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [table]);
   useEffect(() => { load(); }, [load]);
 
   const setV = (k: string, v: unknown) => setF((p) => ({ ...p, [k]: v }));
+  const resetForm = () => { setF({ ...defaults }); setEditingId(null); setOpen(false); };
+  function startEdit(row: Record<string, unknown>) {
+    const nf: Record<string, unknown> = {};
+    for (const fl of fields) nf[fl.key] = row[fl.key] ?? (fl.type === "bool" ? false : "");
+    setF(nf); setEditingId(row.id); setOpen(true);
+  }
 
-  async function add(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!supabase) return;
     setSaving(true);
-    const payload: Record<string, unknown> = { ...defaults };
+    const payload: Record<string, unknown> = editingId ? {} : { ...defaults };
     for (const fl of fields) {
       let v = f[fl.key];
       if (fl.type === "number") v = v === "" || v == null ? null : Number(v);
@@ -50,10 +58,12 @@ function Crud({ table, fields, defaults = {}, filter, orderBy = "created_at", de
       else if (v === "") v = null;
       payload[fl.key] = v;
     }
-    const { error } = await supabase.from(table).insert(payload);
+    const resp = editingId
+      ? await supabase.from(table).update(payload).eq("id", editingId)
+      : await supabase.from(table).insert(payload);
     setSaving(false);
-    if (!error) { setF({ ...defaults }); setOpen(false); load(); }
-    else alert("Enregistrement impossible : " + error.message);
+    if (!resp.error) { resetForm(); load(); }
+    else alert("Enregistrement impossible : " + resp.error.message);
   }
   async function del(id: unknown) {
     if (!supabase || !confirm("Supprimer cette ligne ?")) return;
@@ -66,6 +76,26 @@ function Crud({ table, fields, defaults = {}, filter, orderBy = "created_at", de
     load();
   }
 
+  // recherche plein-texte simple sur les champs affichés
+  const view = q.trim()
+    ? rows.filter((r) => fields.some((fl) => String(r[fl.key] ?? "").toLowerCase().includes(q.toLowerCase())))
+    : rows;
+
+  function exportCSV() {
+    const cell = (r: Record<string, unknown>, fl: Field) => {
+      let v: unknown = r[fl.key];
+      if (fl.type === "bool") v = v ? "Oui" : "Non";
+      if (v == null) v = "";
+      const s = String(v).replace(/"/g, '""');
+      return /[";\n]/.test(s) ? `"${s}"` : s;
+    };
+    const lines = [fields.map((fl) => fl.label).join(";"), ...view.map((r) => fields.map((fl) => cell(r, fl)).join(";"))];
+    const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `${table}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  }
+
   if (err) return <div className="bu-empty">Module non activé (table « {table} » absente). Lance le SQL fourni dans Supabase.</div>;
   if (loading) return <p className="bu-muted">Chargement…</p>;
 
@@ -73,11 +103,13 @@ function Crud({ table, fields, defaults = {}, filter, orderBy = "created_at", de
     <div>
       {summary && <div className="bu-summary">{summary(rows)}</div>}
       <div className="bu-toolbar">
-        <button className="bu-btn" onClick={() => setOpen((o) => !o)}>{open ? "Fermer" : "+ Ajouter"}</button>
-        <span className="bu-count">{rows.length} entrée{rows.length > 1 ? "s" : ""}</span>
+        <button className="bu-btn" onClick={() => (open ? resetForm() : setOpen(true))}>{open ? "Fermer" : "+ Ajouter"}</button>
+        <input className="bu-search" placeholder="Rechercher…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <button className="bu-btn bu-btn--ghost" onClick={exportCSV} disabled={view.length === 0}>Export CSV</button>
+        <span className="bu-count">{view.length} / {rows.length}</span>
       </div>
       {open && (
-        <form className="bu-form" onSubmit={add}>
+        <form className="bu-form" onSubmit={submit}>
           {fields.map((fl) => (
             <label key={fl.key} className={"bu-field" + (fl.type === "textarea" ? " bu-field--wide" : "")}>
               <span>{fl.label}</span>
@@ -96,16 +128,19 @@ function Crud({ table, fields, defaults = {}, filter, orderBy = "created_at", de
               )}
             </label>
           ))}
-          <button className="bu-btn" type="submit" disabled={saving}>{saving ? "…" : "Enregistrer"}</button>
+          <div style={{ gridColumn: "1/-1", display: "flex", gap: ".6rem" }}>
+            <button className="bu-btn" type="submit" disabled={saving}>{saving ? "…" : editingId ? "Modifier" : "Enregistrer"}</button>
+            <button className="bu-btn bu-btn--ghost" type="button" onClick={resetForm}>Annuler</button>
+          </div>
         </form>
       )}
       <div className="bu-tablewrap">
         <table className="bu-table">
           <thead><tr>{fields.map((fl) => <th key={fl.key}>{fl.label}</th>)}<th></th></tr></thead>
           <tbody>
-            {rows.length === 0 ? (
-              <tr><td colSpan={fields.length + 1} className="bu-muted">Aucune entrée pour l&apos;instant.</td></tr>
-            ) : rows.map((r) => (
+            {view.length === 0 ? (
+              <tr><td colSpan={fields.length + 1} className="bu-muted">Aucune entrée{q ? " pour cette recherche" : " pour l'instant"}.</td></tr>
+            ) : view.map((r) => (
               <tr key={String(r.id)}>
                 {fields.map((fl) => (
                   <td key={fl.key}>
@@ -116,7 +151,10 @@ function Crud({ table, fields, defaults = {}, filter, orderBy = "created_at", de
                     ) : fl.type === "date" ? fmtD(r[fl.key] as string) : ((r[fl.key] as string) ?? "")}
                   </td>
                 ))}
-                <td><button className="bu-del" onClick={() => del(r.id)} aria-label="Supprimer">✕</button></td>
+                <td className="bu-rowact">
+                  <button className="bu-edit" onClick={() => startEdit(r)} aria-label="Modifier">✎</button>
+                  <button className="bu-del" onClick={() => del(r.id)} aria-label="Supprimer">✕</button>
+                </td>
               </tr>
             ))}
           </tbody>
