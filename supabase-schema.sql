@@ -89,3 +89,26 @@ create policy "avail_read"       on public.availabilities for select to authenti
 create policy "avail_insert_own" on public.availabilities for insert to authenticated with check (user_id = auth.uid());
 create policy "avail_update_own" on public.availabilities for update to authenticated using (user_id = auth.uid());
 create policy "avail_delete_own" on public.availabilities for delete to authenticated using (user_id = auth.uid());
+
+-- ============================================================
+--  AJOUT — DISPOS DE LA SEMAINE (grille récurrente jour × créneau)
+--  À exécuter dans SQL Editor si tu ajoutes cette fonctionnalité.
+-- ============================================================
+create table if not exists public.weekly_slots (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references auth.users(id) on delete cascade,
+  weekday    int  not null check (weekday between 0 and 6),   -- 0=Lundi … 6=Dimanche
+  slot       text not null check (slot in ('aprem','soir','nuit')),
+  status     text not null check (status in ('yes','maybe')),
+  updated_at timestamptz default now(),
+  unique (user_id, weekday, slot)
+);
+alter table public.weekly_slots enable row level security;
+drop policy if exists "weekly_read"       on public.weekly_slots;
+drop policy if exists "weekly_insert_own" on public.weekly_slots;
+drop policy if exists "weekly_update_own" on public.weekly_slots;
+drop policy if exists "weekly_delete_own" on public.weekly_slots;
+create policy "weekly_read"       on public.weekly_slots for select to authenticated using (true);
+create policy "weekly_insert_own" on public.weekly_slots for insert to authenticated with check (user_id = auth.uid());
+create policy "weekly_update_own" on public.weekly_slots for update to authenticated using (user_id = auth.uid());
+create policy "weekly_delete_own" on public.weekly_slots for delete to authenticated using (user_id = auth.uid());

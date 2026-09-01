@@ -1174,3 +1174,21 @@ main section,.finale{scroll-margin-top:90px}
 .esp-del:hover{opacity:1;text-decoration:underline}
 .esp-row{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}
 @media(max-width:520px){.esp-row{grid-template-columns:1fr}}
+
+/* --- Dispos de la semaine (grille) --- */
+.esp-week{display:flex;flex-direction:column;gap:.4rem}
+.esp-week-head,.esp-week-row{display:grid;grid-template-columns:96px repeat(3,1fr);gap:.4rem;align-items:center}
+.esp-week-head span{font-size:.72rem;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);text-align:center}
+.esp-week-day{font-size:.85rem;font-weight:600;color:var(--text)}
+.esp-cell{height:44px;border:1px solid var(--line-2);background:var(--surface-2);border-radius:9px;cursor:pointer;color:var(--muted);font:inherit;font-weight:700;font-size:1rem;display:flex;align-items:center;justify-content:center;gap:.25rem;transition:all .12s}
+.esp-cell:hover{border-color:var(--line-3)}
+.esp-cell.esp-yes{background:#1f7a4d;border-color:#1f7a4d;color:#fff}
+.esp-cell.esp-maybe{background:#b8860b;border-color:#b8860b;color:#fff}
+.esp-cell-team{color:var(--text);cursor:pointer}
+.esp-cell-team strong{font-size:1.05rem}
+.esp-cell-maybe{font-size:.72rem;color:var(--muted);font-weight:600}
+@media(max-width:560px){
+  .esp-week-head,.esp-week-row{grid-template-columns:70px repeat(3,1fr);gap:.3rem}
+  .esp-week-day{font-size:.78rem}
+  .esp-cell{height:40px}
+}

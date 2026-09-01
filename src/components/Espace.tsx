@@ -218,10 +218,152 @@ function SeanceCard({
 }
 
 /* ------------------------------------------------------------------ */
+/*  DISPOS DE LA SEMAINE — grille récurrente (jour × créneau)          */
+/* ------------------------------------------------------------------ */
+type WeekSlot = { user_id: string; weekday: number; slot: string; status: "yes" | "maybe" };
+const DAYS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
+const SLOTS = [
+  { key: "aprem", label: "Après-midi" },
+  { key: "soir", label: "Soirée" },
+  { key: "nuit", label: "Nuit" },
+] as const;
+
+function WeeklyAvailability({ profile, profiles }: { profile: Profile; profiles: Record<string, Profile> }) {
+  const [view, setView] = useState<"me" | "team">("me");
+  const [slots, setSlots] = useState<WeekSlot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState<string | null>(null); // "wd-slot" ouvert en vue équipe
+  const totalMembers = Math.max(1, Object.keys(profiles).length);
+
+  const load = useCallback(async () => {
+    if (!supabase) return;
+    setLoading(true);
+    const { data } = await supabase.from("weekly_slots").select("user_id,weekday,slot,status");
+    setSlots((data as WeekSlot[]) || []);
+    setLoading(false);
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const mine = (wd: number, sl: string) =>
+    slots.find((s) => s.user_id === profile.id && s.weekday === wd && s.slot === sl)?.status;
+
+  const cycle = async (wd: number, sl: string) => {
+    if (!supabase) return;
+    const cur = mine(wd, sl);
+    const next = cur === undefined ? "yes" : cur === "yes" ? "maybe" : null; // dispo → peut-être → vide
+    setSlots((prev) => {
+      const others = prev.filter((s) => !(s.user_id === profile.id && s.weekday === wd && s.slot === sl));
+      return next ? [...others, { user_id: profile.id, weekday: wd, slot: sl, status: next as "yes" | "maybe" }] : others;
+    });
+    if (next) {
+      await supabase.from("weekly_slots").upsert(
+        { user_id: profile.id, weekday: wd, slot: sl, status: next },
+        { onConflict: "user_id,weekday,slot" }
+      );
+    } else {
+      await supabase.from("weekly_slots").delete()
+        .eq("user_id", profile.id).eq("weekday", wd).eq("slot", sl);
+    }
+  };
+
+  const people = (wd: number, sl: string, st: "yes" | "maybe") =>
+    slots.filter((s) => s.weekday === wd && s.slot === sl && s.status === st);
+
+  if (loading) return <p className="muted">Chargement…</p>;
+
+  return (
+    <div>
+      <div className="esp-seg" style={{ marginBottom: "1rem" }}>
+        <button className={view === "me" ? "on" : ""} onClick={() => setView("me")}>Mes dispos</button>
+        <button className={view === "team" ? "on" : ""} onClick={() => setView("team")}>Vue équipe</button>
+      </div>
+
+      {view === "me" ? (
+        <>
+          <p className="muted" style={{ marginBottom: ".8rem", fontSize: ".9rem" }}>
+            Clique une case pour indiquer ta dispo : 1 clic = <strong style={{ color: "#5bd08d" }}>Dispo</strong>,
+            2 clics = <strong style={{ color: "#e8c35a" }}>Peut-être</strong>, 3 clics = vide.
+            C&apos;est ta dispo <em>habituelle</em> de la semaine (modifiable à tout moment).
+          </p>
+          <div className="esp-week">
+            <div className="esp-week-head"><span></span>{SLOTS.map((s) => <span key={s.key}>{s.label}</span>)}</div>
+            {DAYS.map((d, wd) => (
+              <div className="esp-week-row" key={wd}>
+                <span className="esp-week-day">{d}</span>
+                {SLOTS.map((s) => {
+                  const st = mine(wd, s.key);
+                  return (
+                    <button key={s.key} type="button"
+                      className={"esp-cell" + (st ? " esp-" + st : "")}
+                      onClick={() => cycle(wd, s.key)}
+                      aria-label={`${d} ${s.label}`}>
+                      {st === "yes" ? "✓" : st === "maybe" ? "~" : ""}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="muted" style={{ marginBottom: ".8rem", fontSize: ".9rem" }}>
+            Nombre de personnes dispo par créneau. Clique une case pour voir qui.
+          </p>
+          <div className="esp-week">
+            <div className="esp-week-head"><span></span>{SLOTS.map((s) => <span key={s.key}>{s.label}</span>)}</div>
+            {DAYS.map((d, wd) => (
+              <div className="esp-week-row" key={wd}>
+                <span className="esp-week-day">{d}</span>
+                {SLOTS.map((s) => {
+                  const yes = people(wd, s.key, "yes");
+                  const maybe = people(wd, s.key, "maybe");
+                  const cellId = wd + "-" + s.key;
+                  const ratio = yes.length / totalMembers;
+                  const bg = yes.length === 0 ? "transparent"
+                    : `rgba(91,208,141,${0.15 + Math.min(0.6, ratio * 0.7)})`;
+                  return (
+                    <button key={s.key} type="button" className="esp-cell esp-cell-team"
+                      style={{ background: bg }}
+                      onClick={() => setOpen(open === cellId ? null : cellId)}>
+                      <strong>{yes.length}</strong>{maybe.length ? <span className="esp-cell-maybe">+{maybe.length}?</span> : null}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+          {open && (() => {
+            const [wdS, slK] = open.split("-");
+            const wd = parseInt(wdS, 10);
+            const yes = people(wd, slK, "yes");
+            const maybe = people(wd, slK, "maybe");
+            const lbl = SLOTS.find((x) => x.key === slK)?.label;
+            return (
+              <div className="esp-card" style={{ marginTop: "1rem" }}>
+                <h3 style={{ fontSize: "1rem", marginBottom: ".6rem" }}>{DAYS[wd]} — {lbl}</h3>
+                {yes.length === 0 && maybe.length === 0 ? (
+                  <p className="muted">Personne pour l&apos;instant.</p>
+                ) : (
+                  <ul className="esp-people">
+                    {yes.map((p) => <li key={p.user_id}><span className="esp-dot esp-yes"></span>{profiles[p.user_id]?.pseudo || "Membre"}</li>)}
+                    {maybe.map((p) => <li key={p.user_id}><span className="esp-dot esp-maybe"></span>{profiles[p.user_id]?.pseudo || "Membre"} <span className="muted">(peut-être)</span></li>)}
+                  </ul>
+                )}
+              </div>
+            );
+          })()}
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Tableau de bord (connecté)                                         */
 /* ------------------------------------------------------------------ */
 function Dashboard({ profile, onLogout }: { profile: Profile; onLogout: () => void }) {
-  const [tab, setTab] = useState<SessionType>("training");
+  const [tab, setTab] = useState<"training" | "match" | "week">("training");
   const [seances, setSeances] = useState<Seance[]>([]);
   const [avails, setAvails] = useState<Availability[]>([]);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
@@ -284,21 +426,27 @@ function Dashboard({ profile, onLogout }: { profile: Profile; onLogout: () => vo
       <div className="esp-seg esp-tabs">
         <button className={tab === "training" ? "on" : ""} onClick={() => setTab("training")}>Entraînements</button>
         <button className={tab === "match" ? "on" : ""} onClick={() => setTab("match")}>Matchs</button>
+        <button className={tab === "week" ? "on" : ""} onClick={() => setTab("week")}>Dispos semaine</button>
       </div>
 
-      {isStaff && <CreateForm onCreated={load} />}
-
-      {loading ? (
-        <p className="muted">Chargement…</p>
-      ) : list.length === 0 ? (
-        <div className="esp-card esp-center"><p className="muted">Aucun {tab === "match" ? "match" : "entraînement"} à venir pour le moment.</p></div>
+      {tab === "week" ? (
+        <WeeklyAvailability profile={profile} profiles={profiles} />
       ) : (
-        <div className="esp-list">
-          {list.map((s) => (
-            <SeanceCard key={s.id} s={s} me={profile.id} isStaff={isStaff}
-              avails={avails} profiles={profiles} onRsvp={onRsvp} onDelete={onDelete} />
-          ))}
-        </div>
+        <>
+          {isStaff && <CreateForm onCreated={load} />}
+          {loading ? (
+            <p className="muted">Chargement…</p>
+          ) : list.length === 0 ? (
+            <div className="esp-card esp-center"><p className="muted">Aucun {tab === "match" ? "match" : "entraînement"} à venir pour le moment.</p></div>
+          ) : (
+            <div className="esp-list">
+              {list.map((s) => (
+                <SeanceCard key={s.id} s={s} me={profile.id} isStaff={isStaff}
+                  avails={avails} profiles={profiles} onRsvp={onRsvp} onDelete={onDelete} />
+              ))}
+            </div>
+          )}
+        </>
       )}
     </>
   );
