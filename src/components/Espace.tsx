@@ -87,10 +87,10 @@ function Login() {
 /* ------------------------------------------------------------------ */
 /*  Formulaire staff : créer une séance / un match                     */
 /* ------------------------------------------------------------------ */
-function CreateForm({ onCreated }: { onCreated: () => void }) {
+function CreateForm({ onCreated, defaultTeam }: { onCreated: () => void; defaultTeam: string }) {
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<SessionType>("training");
-  const [f, setF] = useState({ title: "", date: "", time: "", team: "", opponent: "", location: "", notes: "" });
+  const [f, setF] = useState({ title: "", date: "", time: "", team: defaultTeam, opponent: "", location: "", notes: "" });
   const [saving, setSaving] = useState(false);
   const set = (k: string, v: string) => setF((p) => ({ ...p, [k]: v }));
 
@@ -110,7 +110,7 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
     });
     setSaving(false);
     if (!error) {
-      setF({ title: "", date: "", time: "", team: "", opponent: "", location: "", notes: "" });
+      setF({ title: "", date: "", time: "", team: defaultTeam, opponent: "", location: "", notes: "" });
       setOpen(false);
       onCreated();
     } else {
@@ -132,7 +132,11 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
         <div className="field"><label>Heure</label><input type="time" value={f.time} onChange={(e) => set("time", e.target.value)} /></div>
       </div>
       <div className="esp-row">
-        <div className="field"><label>Équipe</label><input value={f.team} onChange={(e) => set("team", e.target.value)} placeholder="Valorant / LoL…" /></div>
+        <div className="field"><label>Équipe</label>
+          <select value={f.team} onChange={(e) => set("team", e.target.value)}>
+            {TEAMS.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+          </select>
+        </div>
         {type === "match" && <div className="field"><label>Adversaire</label><input value={f.opponent} onChange={(e) => set("opponent", e.target.value)} placeholder="Nom de l'équipe" /></div>}
       </div>
       <div className="field"><label>Lieu / lien</label><input value={f.location} onChange={(e) => set("location", e.target.value)} placeholder="En ligne, salle, lien Discord…" /></div>
@@ -175,7 +179,7 @@ function SeanceCard({
       </div>
       <h3>{s.title}{s.opponent ? <span className="esp-vs"> vs {s.opponent}</span> : null}</h3>
       <p className="esp-meta">
-        {s.team ? <span>{s.team}</span> : null}
+        {s.team ? <span>{teamLabel(s.team)}</span> : null}
         {s.location ? <span>· {s.location}</span> : null}
       </p>
       {s.notes ? <p className="esp-notes">{s.notes}</p> : null}
@@ -228,6 +232,19 @@ const SLOTS = [
   { key: "nuit", label: "Nuit", hours: "21h–00h" },
 ] as const;
 
+// Équipes — on normalise ce que contient profiles.team / sessions.team
+const TEAMS = [
+  { key: "valorant", label: "Valorant" },
+  { key: "lol", label: "League of Legends" },
+] as const;
+function teamKey(t?: string | null): string {
+  const s = (t || "").toLowerCase();
+  if (s.includes("valo")) return "valorant";
+  if (s.includes("lol") || s.includes("league")) return "lol";
+  return "";
+}
+const teamLabel = (t?: string | null) => TEAMS.find((x) => x.key === teamKey(t))?.label || t || "";
+
 function WeeklyAvailability({ profile, profiles }: { profile: Profile; profiles: Record<string, Profile> }) {
   const [view, setView] = useState<"me" | "team">("me");
   const [slots, setSlots] = useState<WeekSlot[]>([]);
@@ -266,8 +283,9 @@ function WeeklyAvailability({ profile, profiles }: { profile: Profile; profiles:
     }
   };
 
+  // seuls les membres de l'équipe affichée (profiles est déjà filtré par équipe)
   const people = (wd: number, sl: string, st: "yes" | "maybe") =>
-    slots.filter((s) => s.weekday === wd && s.slot === sl && s.status === st);
+    slots.filter((s) => s.weekday === wd && s.slot === sl && s.status === st && profiles[s.user_id]);
 
   if (loading) return <p className="muted">Chargement…</p>;
 
@@ -364,6 +382,7 @@ function WeeklyAvailability({ profile, profiles }: { profile: Profile; profiles:
 /* ------------------------------------------------------------------ */
 function Dashboard({ profile, onLogout }: { profile: Profile; onLogout: () => void }) {
   const [tab, setTab] = useState<"training" | "match" | "week">("training");
+  const [team, setTeam] = useState<string>(teamKey(profile.team) || "valorant");
   const [seances, setSeances] = useState<Seance[]>([]);
   const [avails, setAvails] = useState<Availability[]>([]);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
@@ -410,7 +429,10 @@ function Dashboard({ profile, onLogout }: { profile: Profile; onLogout: () => vo
     load();
   };
 
-  const list = seances.filter((s) => s.type === tab);
+  const list = seances.filter((s) => s.type === tab && teamKey(s.team) === team);
+  // membres de l'équipe sélectionnée (pour la vue dispos globale)
+  const teamMembers: Record<string, Profile> = {};
+  for (const [id, p] of Object.entries(profiles)) if (teamKey(p.team) === team) teamMembers[id] = p;
 
   return (
     <>
@@ -423,6 +445,14 @@ function Dashboard({ profile, onLogout }: { profile: Profile; onLogout: () => vo
         <button className="btn btn--ghost btn--sm" onClick={onLogout}>Se déconnecter</button>
       </div>
 
+      {/* Sélecteur d'équipe */}
+      <div className="esp-teamsel">
+        {TEAMS.map((t) => (
+          <button key={t.key} className={"esp-teambtn esp-team-" + t.key + (team === t.key ? " on" : "")}
+            onClick={() => setTeam(t.key)}>{t.label}</button>
+        ))}
+      </div>
+
       <div className="esp-seg esp-tabs">
         <button className={tab === "training" ? "on" : ""} onClick={() => setTab("training")}>Entraînements</button>
         <button className={tab === "match" ? "on" : ""} onClick={() => setTab("match")}>Matchs</button>
@@ -430,10 +460,10 @@ function Dashboard({ profile, onLogout }: { profile: Profile; onLogout: () => vo
       </div>
 
       {tab === "week" ? (
-        <WeeklyAvailability profile={profile} profiles={profiles} />
+        <WeeklyAvailability profile={profile} profiles={teamMembers} />
       ) : (
         <>
-          {isStaff && <CreateForm onCreated={load} />}
+          {isStaff && <CreateForm onCreated={load} defaultTeam={team} />}
           {loading ? (
             <p className="muted">Chargement…</p>
           ) : list.length === 0 ? (
