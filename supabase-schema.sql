@@ -175,3 +175,71 @@ create policy "lineup_read"      on public.match_lineup for select to authentica
 create policy "lineup_staff_ins" on public.match_lineup for insert to authenticated with check (public.is_staff());
 create policy "lineup_staff_upd" on public.match_lineup for update to authenticated using (public.is_staff());
 create policy "lineup_staff_del" on public.match_lineup for delete to authenticated using (public.is_staff());
+
+-- ============================================================
+--  ESPACE BUREAU (back-office association) — accès réservé
+-- ============================================================
+-- Accès bureau (indépendant des rôles joueur/staff de l'espace équipe)
+alter table public.profiles add column if not exists is_bureau boolean not null default false;
+
+create or replace function public.is_bureau() returns boolean
+  language sql stable security definer set search_path = public as $$
+  select exists(select 1 from public.profiles where id = auth.uid() and coalesce(is_bureau,false) = true);
+$$;
+
+-- Attribuer / retirer l'accès bureau (réservé aux membres du bureau)
+create or replace function public.set_bureau(target uuid, val boolean) returns void
+  language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_bureau() then raise exception 'Réservé au bureau'; end if;
+  update public.profiles set is_bureau = val where id = target;
+end; $$;
+grant execute on function public.set_bureau(uuid, boolean) to authenticated;
+
+-- Tables du back-office
+create table if not exists public.members (
+  id uuid primary key default gen_random_uuid(),
+  last_name text, first_name text, email text, phone text,
+  status text, notes text, created_at timestamptz default now()
+);
+create table if not exists public.dues (
+  id uuid primary key default gen_random_uuid(),
+  member text, season text, amount numeric, paid boolean default false, method text,
+  created_at timestamptz default now()
+);
+create table if not exists public.finance_entries (
+  id uuid primary key default gen_random_uuid(),
+  entry_date date, kind text, label text, category text, amount numeric, notes text,
+  created_at timestamptz default now()
+);
+create table if not exists public.documents (
+  id uuid primary key default gen_random_uuid(),
+  title text, link text, doc_date date, category text, notes text,
+  created_at timestamptz default now()
+);
+create table if not exists public.partner_contacts (
+  id uuid primary key default gen_random_uuid(),
+  name text, contact_name text, email text, phone text, status text, notes text,
+  created_at timestamptz default now()
+);
+create table if not exists public.equipment (
+  id uuid primary key default gen_random_uuid(),
+  name text, category text, quantity int, status text, notes text,
+  created_at timestamptz default now()
+);
+create table if not exists public.loans (
+  id uuid primary key default gen_random_uuid(),
+  item text, borrower text, out_date date, due_date date, returned boolean default false, notes text,
+  created_at timestamptz default now()
+);
+
+-- RLS : tout est réservé aux membres du bureau (lecture + écriture)
+do $$
+declare t text;
+begin
+  foreach t in array array['members','dues','finance_entries','documents','partner_contacts','equipment','loans'] loop
+    execute format('alter table public.%I enable row level security', t);
+    execute format('drop policy if exists "%s_bureau_all" on public.%I', t, t);
+    execute format('create policy "%s_bureau_all" on public.%I for all to authenticated using (public.is_bureau()) with check (public.is_bureau())', t, t);
+  end loop;
+end $$;
