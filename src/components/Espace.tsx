@@ -28,57 +28,58 @@ function NotConfigured() {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Écran de connexion (lien magique par e-mail)                       */
+/*  Écran de connexion (e-mail + mot de passe)                         */
 /* ------------------------------------------------------------------ */
 function Login() {
   const [email, setEmail] = useState("");
-  const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [password, setPassword] = useState("");
+  const [state, setState] = useState<"idle" | "sending" | "error">("idle");
   const [msg, setMsg] = useState("");
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!supabase) return;
     setState("sending");
-    const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/espace` : undefined;
-    const { error } = await supabase.auth.signInWithOtp({
+    const { error } = await supabase.auth.signInWithPassword({
       email: email.trim(),
-      options: { shouldCreateUser: false, emailRedirectTo: redirectTo },
+      password,
     });
     if (error) {
       setState("error");
       setMsg(
-        /not allowed|signups|not found|invalid/i.test(error.message)
-          ? "Cette adresse n'a pas encore d'accès. Demande au staff de t'inviter."
-          : "Une erreur est survenue. Réessaie dans un instant."
+        /invalid login|invalid credentials|credentials/i.test(error.message)
+          ? "E-mail ou mot de passe incorrect."
+          : /not confirmed/i.test(error.message)
+          ? "Ton compte n'est pas encore activé. Contacte le staff."
+          : "Connexion impossible. Réessaie dans un instant."
       );
-    } else {
-      setState("sent");
     }
+    // succès : onAuthStateChange (racine) recharge le profil → tableau de bord
   }
 
   return (
     <div className="esp-card esp-center" style={{ maxWidth: 460, margin: "0 auto" }}>
       <h2>Espace équipe</h2>
       <p className="muted">Réservé aux joueurs et au staff d&apos;Eden Esport.</p>
-      {state === "sent" ? (
-        <div className="form-ok show" role="status">
-          Un lien de connexion vient de t&apos;être envoyé par e-mail. Ouvre-le sur cet appareil.
+      <form className="form" onSubmit={onSubmit} style={{ marginTop: "1rem" }}>
+        <div className="field">
+          <label>Ton adresse e-mail</label>
+          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
+            placeholder="prenom@exemple.com" autoComplete="email" />
         </div>
-      ) : (
-        <form className="form" onSubmit={onSubmit} style={{ marginTop: "1rem" }}>
-          <div className="field">
-            <label>Ton adresse e-mail</label>
-            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-              placeholder="prenom@exemple.com" autoComplete="email" />
-          </div>
-          {state === "error" && <div className="form-ok form-err show" role="alert">{msg}</div>}
-          <div>
-            <button className="btn" type="submit" disabled={state === "sending"}>
-              {state === "sending" ? "Envoi…" : "Recevoir mon lien de connexion"}<span className="arw">→</span>
-            </button>
-          </div>
-        </form>
-      )}
+        <div className="field">
+          <label>Mot de passe</label>
+          <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
+            placeholder="Ton mot de passe" autoComplete="current-password" />
+        </div>
+        {state === "error" && <div className="form-ok form-err show" role="alert">{msg}</div>}
+        <div>
+          <button className="btn" type="submit" disabled={state === "sending"}>
+            {state === "sending" ? "Connexion…" : "Se connecter"}<span className="arw">→</span>
+          </button>
+        </div>
+        <p className="form-note">Mot de passe oublié ou pas encore de compte ? Contacte le staff.</p>
+      </form>
     </div>
   );
 }
