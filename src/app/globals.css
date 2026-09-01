@@ -1203,3 +1203,44 @@ main section,.finale{scroll-margin-top:90px}
 .esp-teambtn.esp-team-lol.on{background:#0a7cff;border-color:#0a7cff;color:#fff}
 /* menu déroulant dans les formulaires de l'espace */
 .esp-card .field select,.form .field select{width:100%;padding:.7rem .8rem;border-radius:10px;border:1px solid var(--line-2);background:var(--surface-2);color:var(--text);font:inherit}
+
+/* --- Espace : accueil, annonces, calendrier, roster --- */
+.esp-block{margin-top:1.8rem}
+.esp-block-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem}
+.esp-block-head h2{font-size:1.2rem}
+.esp-home-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem}
+@media(max-width:560px){.esp-home-grid{grid-template-columns:1fr}}
+.esp-mini{display:flex;flex-direction:column;gap:.15rem}
+.esp-mini .esp-badge{align-self:flex-start;margin-bottom:.5rem}
+.esp-mini-date{font-size:1.05rem;font-weight:700;text-transform:capitalize}
+.esp-mini-hour{color:var(--lavender);font-size:.9rem}
+.esp-confirm{border-color:var(--violet);background:radial-gradient(circle at 20% 0%,rgba(125,92,255,.14),transparent 70%),var(--surface);margin-bottom:1rem}
+.esp-confirm p{margin-bottom:.7rem}
+.esp-ann{position:relative}
+.esp-ann-head{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+.esp-ann-head h3{font-size:1.05rem}
+.esp-ann-body{margin-top:.4rem;white-space:pre-wrap}
+/* Calendrier */
+.esp-cal-top{display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}
+.esp-cal-nav{display:flex;align-items:center;gap:.5rem}
+.esp-cal-dow{display:grid;grid-template-columns:repeat(7,1fr);gap:.3rem;margin-bottom:.3rem}
+.esp-cal-dow span{text-align:center;font-size:.72rem;text-transform:uppercase;color:var(--muted)}
+.esp-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:.3rem}
+.esp-cal-cell{min-height:76px;border:1px solid var(--line-2);background:var(--surface);border-radius:8px;padding:.3rem;display:flex;flex-direction:column;gap:.2rem}
+.esp-cal-empty{background:transparent;border-color:transparent}
+.esp-cal-today{border-color:var(--violet)}
+.esp-cal-num{font-size:.8rem;color:var(--muted);font-weight:600}
+.esp-cal-ev{font-size:.66rem;padding:.12rem .3rem;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.esp-cal-ev.esp-training{background:rgba(125,92,255,.22);color:var(--lavender)}
+.esp-cal-ev.esp-match{background:rgba(255,70,85,.22);color:#ff9aa2}
+@media(max-width:560px){.esp-cal-cell{min-height:56px}.esp-cal-ev{font-size:.58rem}}
+/* Roster */
+.esp-roster{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem}
+.esp-member{display:flex;gap:.9rem;align-items:flex-start}
+.esp-member-av{width:56px;height:56px;flex:none;border-radius:50%;overflow:hidden;background:var(--surface-2);border:1px solid var(--line-2);display:grid;place-items:center;font-weight:800;font-size:1.3rem;color:var(--lavender)}
+.esp-member-av img{width:100%;height:100%;object-fit:cover}
+.esp-member-body{min-width:0}
+.esp-member-top{display:flex;align-items:center;gap:.5rem}
+.esp-member-bio{font-size:.85rem;color:var(--muted);margin:.4rem 0}
+.esp-member .soc-links{margin-top:.5rem}
+.esp-member .soc-ico{width:30px;height:30px}

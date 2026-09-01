@@ -7,6 +7,20 @@ export type Profile = {
   pseudo: string;
   role: Role;
   team: string | null;
+  poste?: string | null;      // poste en jeu (Duelist, Top…)
+  rank?: string | null;       // rang (Radiant, Diamant…)
+  photo_url?: string | null;  // lien photo (optionnel)
+  socials?: string | null;    // "Label | url" par ligne
+  bio?: string | null;
+};
+
+export type Announcement = {
+  id: string;
+  team: string | null;   // null = toutes les équipes
+  title: string;
+  body: string;
+  created_by: string | null;
+  created_at: string;
 };
 
 export type SessionType = "training" | "match";

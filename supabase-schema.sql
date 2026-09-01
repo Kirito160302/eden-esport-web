@@ -112,3 +112,37 @@ create policy "weekly_read"       on public.weekly_slots for select to authentic
 create policy "weekly_insert_own" on public.weekly_slots for insert to authenticated with check (user_id = auth.uid());
 create policy "weekly_update_own" on public.weekly_slots for update to authenticated using (user_id = auth.uid());
 create policy "weekly_delete_own" on public.weekly_slots for delete to authenticated using (user_id = auth.uid());
+
+-- ============================================================
+--  AJOUT — Accueil/Annonces + Profils enrichis (self-service)
+-- ============================================================
+-- Colonnes profil enrichi
+alter table public.profiles
+  add column if not exists poste     text,
+  add column if not exists rank      text,
+  add column if not exists photo_url text,
+  add column if not exists socials   text,
+  add column if not exists bio       text;
+
+-- Annonces internes
+create table if not exists public.announcements (
+  id         uuid primary key default gen_random_uuid(),
+  team       text,                         -- null = toutes les équipes
+  title      text not null default '',
+  body       text not null default '',
+  created_by uuid references auth.users(id),
+  created_at timestamptz default now()
+);
+alter table public.announcements enable row level security;
+drop policy if exists "ann_read"      on public.announcements;
+drop policy if exists "ann_staff_ins" on public.announcements;
+drop policy if exists "ann_staff_upd" on public.announcements;
+drop policy if exists "ann_staff_del" on public.announcements;
+create policy "ann_read"      on public.announcements for select to authenticated using (true);
+create policy "ann_staff_ins" on public.announcements for insert to authenticated with check (public.is_staff());
+create policy "ann_staff_upd" on public.announcements for update to authenticated using (public.is_staff());
+create policy "ann_staff_del" on public.announcements for delete to authenticated using (public.is_staff());
+
+-- Sécurité : un joueur ne modifie QUE les champs "profil" (jamais role/team via le site)
+revoke update on public.profiles from authenticated;
+grant  update (pseudo, poste, rank, photo_url, socials, bio) on public.profiles to authenticated;

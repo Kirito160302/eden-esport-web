@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { getSupabase, SUPABASE_ENABLED } from "@/lib/supabase";
-import type { Profile, Seance, Availability, SessionType } from "@/lib/espace-types";
+import type { Profile, Seance, Availability, SessionType, Announcement } from "@/lib/espace-types";
+import SocialLinks from "./SocialIcons";
 
 const supabase = getSupabase();
 
@@ -10,6 +11,58 @@ const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" });
 const fmtHour = (iso: string) =>
   new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+
+// Colonnes profil (tolérant : repli si les colonnes enrichies n'existent pas encore)
+const PROFILE_COLS = "id,pseudo,role,team,poste,rank,photo_url,socials,bio";
+async function fetchProfiles(): Promise<Profile[]> {
+  if (!supabase) return [];
+  let r = await supabase.from("profiles").select(PROFILE_COLS);
+  if (r.error) r = await supabase.from("profiles").select("id,pseudo,role,team");
+  return (r.data as Profile[]) || [];
+}
+async function fetchMyProfile(uid: string): Promise<Profile | null> {
+  if (!supabase) return null;
+  let r = await supabase.from("profiles").select(PROFILE_COLS).eq("id", uid).maybeSingle();
+  if (r.error) r = await supabase.from("profiles").select("id,pseudo,role,team").eq("id", uid).maybeSingle();
+  return (r.data as Profile) || null;
+}
+
+// Réseaux stockés en texte "Label | url" par ligne → tableau {label,url}
+function parseSocialsText(txt?: string | null): { label: string; url: string }[] {
+  return (txt || "").split("\n").map((l) => l.trim()).filter(Boolean).map((line) => {
+    const i = line.indexOf("|");
+    if (i !== -1) return { label: line.slice(0, i).trim(), url: line.slice(i + 1).trim() };
+    const m = line.match(/https?:\/\/\S+/);
+    return m ? { label: line.replace(m[0], "").trim(), url: m[0] } : { label: "", url: line };
+  }).filter((s) => s.url);
+}
+
+// Génère et télécharge un fichier .ics (agenda) à partir des séances
+function downloadICS(seances: Seance[], teamName: string) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const dt = (iso: string) => {
+    const d = new Date(iso);
+    return `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}00Z`;
+  };
+  const esc = (s: string) => (s || "").replace(/([,;\\])/g, "\\$1").replace(/\n/g, "\\n");
+  const now = dt(new Date().toISOString());
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Eden Esport//Espace//FR", "CALSCALE:GREGORIAN", `X-WR-CALNAME:Eden ${teamName}`];
+  for (const s of seances) {
+    const start = new Date(s.starts_at);
+    const end = new Date(start.getTime() + 2 * 3600 * 1000);
+    const title = (s.type === "match" ? "Match" : "Entraînement") + (s.title ? ` — ${s.title}` : "") + (s.opponent ? ` vs ${s.opponent}` : "");
+    lines.push("BEGIN:VEVENT", `UID:${s.id}@edenesport.fr`, `DTSTAMP:${now}`, `DTSTART:${dt(s.starts_at)}`, `DTEND:${dt(end.toISOString())}`, `SUMMARY:${esc(title)}`);
+    if (s.location) lines.push(`LOCATION:${esc(s.location)}`);
+    if (s.notes) lines.push(`DESCRIPTION:${esc(s.notes)}`);
+    lines.push("END:VEVENT");
+  }
+  lines.push("END:VCALENDAR");
+  const blob = new Blob([lines.join("\r\n")], { type: "text/calendar" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `eden-${teamName || "planning"}.ics`; a.click();
+  URL.revokeObjectURL(url);
+}
 
 /* ------------------------------------------------------------------ */
 /*  Espace non configuré → message neutre (le site public n'est pas   */
@@ -378,31 +431,303 @@ function WeeklyAvailability({ profile, profiles }: { profile: Profile; profiles:
 }
 
 /* ------------------------------------------------------------------ */
+/*  ANNONCES INTERNES                                                  */
+/* ------------------------------------------------------------------ */
+function Announcements({ items, isStaff, team, onChange }: {
+  items: Announcement[]; isStaff: boolean; team: string; onChange: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [scope, setScope] = useState<"team" | "all">("team");
+  const [saving, setSaving] = useState(false);
+
+  async function post(e: React.FormEvent) {
+    e.preventDefault();
+    if (!supabase || !title.trim()) return;
+    setSaving(true);
+    const { error } = await supabase.from("announcements").insert({
+      team: scope === "all" ? null : team, title: title.trim(), body: body.trim(),
+    });
+    setSaving(false);
+    if (!error) { setTitle(""); setBody(""); setOpen(false); onChange(); }
+    else alert("Publication impossible : " + error.message);
+  }
+  async function del(id: string) {
+    if (!supabase || !confirm("Supprimer cette annonce ?")) return;
+    await supabase.from("announcements").delete().eq("id", id);
+    onChange();
+  }
+
+  return (
+    <section className="esp-block">
+      <div className="esp-block-head">
+        <h2>Annonces</h2>
+        {isStaff && !open && <button className="btn btn--sm" onClick={() => setOpen(true)}>+ Annonce</button>}
+      </div>
+      {isStaff && open && (
+        <form className="form esp-card" onSubmit={post} style={{ marginBottom: "1rem" }}>
+          <div className="field"><label>Titre</label><input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="ex : Match ce dimanche" required /></div>
+          <div className="field"><label>Message</label><textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Détails de l'annonce…"></textarea></div>
+          <div className="esp-seg">
+            <button type="button" className={scope === "team" ? "on" : ""} onClick={() => setScope("team")}>{teamLabel(team)}</button>
+            <button type="button" className={scope === "all" ? "on" : ""} onClick={() => setScope("all")}>Toutes les équipes</button>
+          </div>
+          <div style={{ display: "flex", gap: ".6rem", marginTop: ".8rem" }}>
+            <button className="btn btn--sm" type="submit" disabled={saving}>{saving ? "Publication…" : "Publier"}</button>
+            <button className="btn btn--ghost btn--sm" type="button" onClick={() => setOpen(false)}>Annuler</button>
+          </div>
+        </form>
+      )}
+      {items.length === 0 ? (
+        <div className="esp-card esp-center"><p className="muted">Aucune annonce pour l&apos;instant.</p></div>
+      ) : (
+        <div className="esp-list">
+          {items.map((a) => (
+            <div className="esp-card esp-ann" key={a.id}>
+              <div className="esp-ann-head">
+                <h3>{a.title}</h3>
+                {!a.team && <span className="esp-badge esp-training">Toutes équipes</span>}
+              </div>
+              <span className="esp-date">{fmtDate(a.created_at)}</span>
+              {a.body ? <p className="esp-ann-body">{a.body}</p> : null}
+              {isStaff && <button className="esp-del" onClick={() => del(a.id)}>Supprimer</button>}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  ACCUEIL — cockpit (prochaines séances + dispo à confirmer)          */
+/* ------------------------------------------------------------------ */
+function HomeView({ profile, team, seances, avails, announcements, isStaff, onRsvp, onChangeAnn }: {
+  profile: Profile; team: string; seances: Seance[]; avails: Availability[];
+  announcements: Announcement[]; isStaff: boolean;
+  onRsvp: (id: string, st: "yes" | "no" | "maybe") => void; onChangeAnn: () => void;
+}) {
+  const now = Date.now();
+  const future = seances
+    .filter((s) => teamKey(s.team) === team && new Date(s.starts_at).getTime() > now - 3 * 3600 * 1000)
+    .sort((a, b) => +new Date(a.starts_at) - +new Date(b.starts_at));
+  const nextTraining = future.find((s) => s.type === "training");
+  const nextMatch = future.find((s) => s.type === "match");
+  const nextAny = future[0];
+  const myNext = nextAny ? avails.find((a) => a.session_id === nextAny.id && a.user_id === profile.id)?.status : undefined;
+
+  const Mini = ({ s, kind }: { s?: Seance; kind: "training" | "match" }) => (
+    <div className="esp-card esp-mini">
+      <span className={"esp-badge esp-" + kind}>{kind === "match" ? "Prochain match" : "Prochain entraînement"}</span>
+      {s ? (
+        <>
+          <div className="esp-mini-date">{fmtDate(s.starts_at)}</div>
+          <div className="esp-mini-hour">{fmtHour(s.starts_at)}{s.opponent ? ` · vs ${s.opponent}` : ""}</div>
+          {s.location ? <div className="muted" style={{ fontSize: ".85rem" }}>{s.location}</div> : null}
+        </>
+      ) : <p className="muted" style={{ marginTop: ".6rem" }}>Rien de prévu.</p>}
+    </div>
+  );
+
+  return (
+    <div>
+      <h2 style={{ marginBottom: "1rem" }}>Salut {profile.pseudo} 👋</h2>
+      <div className="esp-home-grid">
+        <Mini s={nextTraining} kind="training" />
+        <Mini s={nextMatch} kind="match" />
+      </div>
+
+      {nextAny && !myNext && (
+        <div className="esp-card esp-confirm">
+          <p>Tu n&apos;as pas encore répondu pour <strong>{nextAny.type === "match" ? "le prochain match" : "le prochain entraînement"}</strong> ({fmtDate(nextAny.starts_at)} · {fmtHour(nextAny.starts_at)}). Tu viens ?</p>
+          <div className="esp-rsvp">
+            {STATUS.map((st) => (
+              <button key={st.key} type="button" className={"esp-rsvp-btn esp-" + st.cls}
+                onClick={() => onRsvp(nextAny.id, st.key)}>{st.label}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <Announcements items={announcements} isStaff={isStaff} team={team} onChange={onChangeAnn} />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  CALENDRIER MENSUEL + export .ics                                    */
+/* ------------------------------------------------------------------ */
+function CalendarView({ seances, team }: { seances: Seance[]; team: string }) {
+  const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
+  const teamSeances = seances.filter((s) => teamKey(s.team) === team);
+
+  const y = month.getFullYear(), m = month.getMonth();
+  const firstDow = (new Date(y, m, 1).getDay() + 6) % 7; // lundi=0
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const cells: (number | null)[] = [];
+  for (let i = 0; i < firstDow; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  const sessionsOn = (d: number) => teamSeances.filter((s) => {
+    const dt = new Date(s.starts_at);
+    return dt.getFullYear() === y && dt.getMonth() === m && dt.getDate() === d;
+  }).sort((a, b) => +new Date(a.starts_at) - +new Date(b.starts_at));
+
+  const monthLabel = month.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+  const today = new Date();
+  const isToday = (d: number) => today.getFullYear() === y && today.getMonth() === m && today.getDate() === d;
+
+  return (
+    <div>
+      <div className="esp-cal-top">
+        <div className="esp-cal-nav">
+          <button className="btn btn--ghost btn--sm" onClick={() => setMonth(new Date(y, m - 1, 1))}>←</button>
+          <strong style={{ textTransform: "capitalize", minWidth: 160, textAlign: "center" }}>{monthLabel}</strong>
+          <button className="btn btn--ghost btn--sm" onClick={() => setMonth(new Date(y, m + 1, 1))}>→</button>
+        </div>
+        <button className="btn btn--sm" onClick={() => downloadICS(
+          teamSeances.filter((s) => new Date(s.starts_at).getTime() > Date.now() - 24 * 3600 * 1000),
+          teamLabel(team))}>📅 Ajouter à mon agenda</button>
+      </div>
+      <div className="esp-cal">
+        <div className="esp-cal-dow">{["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map((d) => <span key={d}>{d}</span>)}</div>
+        <div className="esp-cal-grid">
+          {cells.map((d, i) => (
+            <div className={"esp-cal-cell" + (d && isToday(d) ? " esp-cal-today" : "") + (d ? "" : " esp-cal-empty")} key={i}>
+              {d && <span className="esp-cal-num">{d}</span>}
+              {d && sessionsOn(d).map((s) => (
+                <span key={s.id} className={"esp-cal-ev esp-" + s.type} title={`${fmtHour(s.starts_at)} ${s.title}`}>
+                  {fmtHour(s.starts_at)} {s.type === "match" ? "🎮" : "🏋"}
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+      <p className="muted" style={{ fontSize: ".85rem", marginTop: ".8rem" }}>
+        « Ajouter à mon agenda » télécharge les séances à venir (fichier .ics) à importer dans Google Agenda / Apple Calendrier.
+      </p>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  MON PROFIL (édition self-service)                                   */
+/* ------------------------------------------------------------------ */
+function MyProfileForm({ profile, onSaved, onCancel }: { profile: Profile; onSaved: () => void; onCancel: () => void }) {
+  const [f, setF] = useState({
+    pseudo: profile.pseudo || "", poste: profile.poste || "", rank: profile.rank || "",
+    photo_url: profile.photo_url || "", socials: profile.socials || "", bio: profile.bio || "",
+  });
+  const [saving, setSaving] = useState(false);
+  const set = (k: string, v: string) => setF((p) => ({ ...p, [k]: v }));
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    if (!supabase) return;
+    setSaving(true);
+    const { error } = await supabase.from("profiles").update({
+      pseudo: f.pseudo, poste: f.poste || null, rank: f.rank || null,
+      photo_url: f.photo_url || null, socials: f.socials || null, bio: f.bio || null,
+    }).eq("id", profile.id);
+    setSaving(false);
+    if (!error) onSaved();
+    else alert("Enregistrement impossible : " + error.message);
+  }
+
+  return (
+    <form className="form esp-card" onSubmit={save} style={{ marginBottom: "1.2rem" }}>
+      <h3 style={{ marginBottom: ".8rem" }}>Mon profil</h3>
+      <div className="esp-row">
+        <div className="field"><label>Pseudo</label><input value={f.pseudo} onChange={(e) => set("pseudo", e.target.value)} required /></div>
+        <div className="field"><label>Poste / rôle</label><input value={f.poste} onChange={(e) => set("poste", e.target.value)} placeholder="Duelist, Top…" /></div>
+      </div>
+      <div className="esp-row">
+        <div className="field"><label>Rang</label><input value={f.rank} onChange={(e) => set("rank", e.target.value)} placeholder="Radiant, Diamant…" /></div>
+        <div className="field"><label>Photo (lien)</label><input value={f.photo_url} onChange={(e) => set("photo_url", e.target.value)} placeholder="https://…" /></div>
+      </div>
+      <div className="field"><label>Réseaux (un par ligne : Label | lien)</label><textarea value={f.socials} onChange={(e) => set("socials", e.target.value)} placeholder="Twitch | https://twitch.tv/moi"></textarea></div>
+      <div className="field"><label>Bio</label><textarea value={f.bio} onChange={(e) => set("bio", e.target.value)} placeholder="Quelques mots sur toi…"></textarea></div>
+      <div style={{ display: "flex", gap: ".6rem" }}>
+        <button className="btn btn--sm" type="submit" disabled={saving}>{saving ? "Enregistrement…" : "Enregistrer"}</button>
+        <button className="btn btn--ghost btn--sm" type="button" onClick={onCancel}>Annuler</button>
+      </div>
+    </form>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  ÉQUIPE — roster interne                                             */
+/* ------------------------------------------------------------------ */
+function RosterView({ members, me, onSaved }: { members: Record<string, Profile>; me: Profile; onSaved: () => void }) {
+  const [editing, setEditing] = useState(false);
+  const list = Object.values(members).sort((a, b) => (a.pseudo || "").localeCompare(b.pseudo || ""));
+
+  return (
+    <div>
+      <div className="esp-block-head" style={{ marginBottom: "1rem" }}>
+        <h2>L&apos;équipe</h2>
+        {!editing && <button className="btn btn--sm" onClick={() => setEditing(true)}>Modifier mon profil</button>}
+      </div>
+      {editing && <MyProfileForm profile={me} onCancel={() => setEditing(false)} onSaved={() => { setEditing(false); onSaved(); }} />}
+      {list.length === 0 ? (
+        <div className="esp-card esp-center"><p className="muted">Aucun membre dans cette équipe pour l&apos;instant.</p></div>
+      ) : (
+        <div className="esp-roster">
+          {list.map((p) => (
+            <div className="esp-card esp-member" key={p.id}>
+              <div className="esp-member-av">
+                {p.photo_url ? <img src={p.photo_url} alt={p.pseudo} /> : <span>{(p.pseudo || "?").charAt(0).toUpperCase()}</span>}
+              </div>
+              <div className="esp-member-body">
+                <div className="esp-member-top">
+                  <strong>{p.pseudo}</strong>
+                  {p.role === "staff" && <span className="esp-role esp-role-staff">Staff</span>}
+                </div>
+                <div className="muted" style={{ fontSize: ".85rem" }}>
+                  {[p.poste, p.rank].filter(Boolean).join(" · ") || "—"}
+                </div>
+                {p.bio ? <p className="esp-member-bio">{p.bio}</p> : null}
+                <SocialLinks socials={parseSocialsText(p.socials)} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Tableau de bord (connecté)                                         */
 /* ------------------------------------------------------------------ */
 function Dashboard({ profile, onLogout }: { profile: Profile; onLogout: () => void }) {
-  const [tab, setTab] = useState<"training" | "match" | "week">("training");
+  const [tab, setTab] = useState<"home" | "seances" | "week" | "calendar" | "team">("home");
   const [team, setTeam] = useState<string>(teamKey(profile.team) || "valorant");
   const [seances, setSeances] = useState<Seance[]>([]);
   const [avails, setAvails] = useState<Availability[]>([]);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
+  const [anns, setAnns] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const isStaff = profile.role === "staff";
 
   const load = useCallback(async () => {
     if (!supabase) return;
     setLoading(true);
-    const since = new Date(Date.now() - 12 * 3600 * 1000).toISOString();
-    const [{ data: ss }, { data: av }, { data: pr }] = await Promise.all([
+    const since = new Date(Date.now() - 40 * 24 * 3600 * 1000).toISOString();
+    const [ssR, avR, prof, annR] = await Promise.all([
       supabase.from("sessions").select("*").gte("starts_at", since).order("starts_at", { ascending: true }),
       supabase.from("availabilities").select("*"),
-      supabase.from("profiles").select("id,pseudo,role,team"),
+      fetchProfiles(),
+      supabase.from("announcements").select("*").order("created_at", { ascending: false }),
     ]);
-    setSeances((ss as Seance[]) || []);
-    setAvails((av as Availability[]) || []);
+    setSeances((ssR.data as Seance[]) || []);
+    setAvails((avR.data as Availability[]) || []);
     const map: Record<string, Profile> = {};
-    for (const p of (pr as Profile[]) || []) map[p.id] = p;
+    for (const p of prof) map[p.id] = p;
     setProfiles(map);
+    setAnns((annR.data as Announcement[]) || []);
     setLoading(false);
   }, []);
 
@@ -429,18 +754,31 @@ function Dashboard({ profile, onLogout }: { profile: Profile; onLogout: () => vo
     load();
   };
 
-  const list = seances.filter((s) => s.type === tab && teamKey(s.team) === team);
-  // membres de l'équipe sélectionnée (pour la vue dispos globale)
+  const me = profiles[profile.id] || profile;
+  // membres de l'équipe sélectionnée
   const teamMembers: Record<string, Profile> = {};
   for (const [id, p] of Object.entries(profiles)) if (teamKey(p.team) === team) teamMembers[id] = p;
+  const annForTeam = anns.filter((a) => !a.team || teamKey(a.team) === team);
+  const now = Date.now();
+  const upcoming = seances
+    .filter((s) => teamKey(s.team) === team && new Date(s.starts_at).getTime() > now - 3 * 3600 * 1000)
+    .sort((a, b) => +new Date(a.starts_at) - +new Date(b.starts_at));
+
+  const TABS: { key: typeof tab; label: string }[] = [
+    { key: "home", label: "Accueil" },
+    { key: "seances", label: "Séances" },
+    { key: "week", label: "Dispos semaine" },
+    { key: "calendar", label: "Calendrier" },
+    { key: "team", label: "Équipe" },
+  ];
 
   return (
     <>
       <div className="esp-topbar">
         <div>
           <p className="eyebrow" style={{ margin: 0 }}>Espace équipe</p>
-          <strong>{profile.pseudo}</strong>
-          <span className={"esp-role esp-role-" + profile.role}>{isStaff ? "Staff" : "Joueur"}</span>
+          <strong>{me.pseudo}</strong>
+          <span className={"esp-role esp-role-" + me.role}>{isStaff ? "Staff" : "Joueur"}</span>
         </div>
         <button className="btn btn--ghost btn--sm" onClick={onLogout}>Se déconnecter</button>
       </div>
@@ -460,23 +798,26 @@ function Dashboard({ profile, onLogout }: { profile: Profile; onLogout: () => vo
       </div>
 
       <div className="esp-seg esp-tabs">
-        <button className={tab === "training" ? "on" : ""} onClick={() => setTab("training")}>Entraînements</button>
-        <button className={tab === "match" ? "on" : ""} onClick={() => setTab("match")}>Matchs</button>
-        <button className={tab === "week" ? "on" : ""} onClick={() => setTab("week")}>Dispos semaine</button>
+        {TABS.map((t) => (
+          <button key={t.key} className={tab === t.key ? "on" : ""} onClick={() => setTab(t.key)}>{t.label}</button>
+        ))}
       </div>
 
-      {tab === "week" ? (
-        <WeeklyAvailability profile={profile} profiles={teamMembers} />
-      ) : (
+      {loading && tab !== "home" ? <p className="muted">Chargement…</p> : null}
+
+      {tab === "home" && (
+        <HomeView profile={me} team={team} seances={seances} avails={avails}
+          announcements={annForTeam} isStaff={isStaff} onRsvp={onRsvp} onChangeAnn={load} />
+      )}
+
+      {tab === "seances" && (
         <>
           {isStaff && <CreateForm onCreated={load} defaultTeam={team} />}
-          {loading ? (
-            <p className="muted">Chargement…</p>
-          ) : list.length === 0 ? (
-            <div className="esp-card esp-center"><p className="muted">Aucun {tab === "match" ? "match" : "entraînement"} à venir pour le moment.</p></div>
+          {upcoming.length === 0 ? (
+            <div className="esp-card esp-center"><p className="muted">Aucune séance à venir pour le moment.</p></div>
           ) : (
             <div className="esp-list">
-              {list.map((s) => (
+              {upcoming.map((s) => (
                 <SeanceCard key={s.id} s={s} me={profile.id} isStaff={isStaff}
                   avails={avails} profiles={profiles} onRsvp={onRsvp} onDelete={onDelete} />
               ))}
@@ -484,6 +825,10 @@ function Dashboard({ profile, onLogout }: { profile: Profile; onLogout: () => vo
           )}
         </>
       )}
+
+      {tab === "week" && <WeeklyAvailability profile={me} profiles={teamMembers} />}
+      {tab === "calendar" && <CalendarView seances={seances} team={team} />}
+      {tab === "team" && <RosterView members={teamMembers} me={me} onSaved={load} />}
     </>
   );
 }
