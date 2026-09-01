@@ -8,9 +8,9 @@ type Member = { name: string; role: string; img?: string };
 
 const BUREAU: Member[] = [
   { name: "Enzo « Kirito » Gomez", role: "Président", img: "/team/kirito.jpg" },
-  { name: "Sébastien Kroner", role: "Vice-président" },
-  { name: "Romaric « Roro » Malapeyre", role: "Vice-président" },
-  { name: "Marie-Laure Richard", role: "Secrétaire" },
+  { name: "Sébastien Kroner", role: "Vice-président", img: "/team/sebastien.jpg" },
+  { name: "Romaric « Roro » Malapeyre", role: "Vice-président", img: "/team/roro.jpg" },
+  { name: "Marie-Laure Richard", role: "Secrétaire", img: "/team/marie-laure.jpg" },
   { name: "Poste ouvert", role: "Trésorier" },
 ];
 
@@ -18,8 +18,8 @@ const POLES: Member[] = [
   { name: "Luc Dinghin", role: "Responsable Esport" },
   { name: "Raenavia", role: "Responsable League of Legends" },
   { name: "Popy", role: "Responsable Valorant" },
-  { name: "Romaric Malapeyre", role: "Responsable Académie" },
-  { name: "Romaric Malapeyre", role: "Intendant Esport" },
+  { name: "Romaric Malapeyre", role: "Responsable Académie", img: "/team/roro.jpg" },
+  { name: "Romaric Malapeyre", role: "Intendant Esport", img: "/team/roro.jpg" },
   { name: "Enzo Gomez", role: "Responsable Événementiel", img: "/team/kirito.jpg" },
   { name: "Poste ouvert", role: "Community Manager" },
 ];
