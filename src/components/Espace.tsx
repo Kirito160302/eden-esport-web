@@ -445,12 +445,18 @@ function Dashboard({ profile, onLogout }: { profile: Profile; onLogout: () => vo
         <button className="btn btn--ghost btn--sm" onClick={onLogout}>Se déconnecter</button>
       </div>
 
-      {/* Sélecteur d'équipe */}
+      {/* Sélecteur d'équipe : le staff bascule entre les 2, le joueur voit la sienne */}
       <div className="esp-teamsel">
-        {TEAMS.map((t) => (
-          <button key={t.key} className={"esp-teambtn esp-team-" + t.key + (team === t.key ? " on" : "")}
-            onClick={() => setTeam(t.key)}>{t.label}</button>
-        ))}
+        {isStaff ? (
+          TEAMS.map((t) => (
+            <button key={t.key} className={"esp-teambtn esp-team-" + t.key + (team === t.key ? " on" : "")}
+              onClick={() => setTeam(t.key)}>{t.label}</button>
+          ))
+        ) : (
+          <span className={"esp-teambtn esp-team-" + team + " on"} style={{ cursor: "default" }}>
+            {TEAMS.find((t) => t.key === team)?.label || "Mon équipe"}
+          </span>
+        )}
       </div>
 
       <div className="esp-seg esp-tabs">
