@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function BureauPage() {
   return (
-    <section className="section" style={{ paddingTop: "1.5rem" }}>
+    <section className="section" style={{ paddingTop: "6rem" }}>
       <div className="wrap"><Bureau /></div>
     </section>
   );
