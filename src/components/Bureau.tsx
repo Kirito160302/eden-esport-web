@@ -168,12 +168,6 @@ function Kpi({ label, value, tone }: { label: string; value: string; tone?: "pos
   return <div className={"bu-kpi" + (tone ? " bu-kpi--" + tone : "")}><span className="bu-kpi-v">{value}</span><span className="bu-kpi-l">{label}</span></div>;
 }
 
-const financeSummary = (rows: Record<string, unknown>[]) => {
-  const rec = rows.filter((r) => r.kind === "Recette").reduce((s, r) => s + (Number(r.amount) || 0), 0);
-  const dep = rows.filter((r) => r.kind === "Dépense").reduce((s, r) => s + (Number(r.amount) || 0), 0);
-  return <div className="bu-kpis"><Kpi label="Recettes" value={eur(rec)} tone="pos" /><Kpi label="Dépenses" value={eur(dep)} tone="neg" /><Kpi label="Solde" value={eur(rec - dep)} /></div>;
-};
-
 /* ================================================================
    TABLEAU DE BORD
    ================================================================ */
@@ -268,14 +262,85 @@ const memberFields: Field[] = [
 const duesFields: Field[] = [
   { key: "member", label: "Membre" }, { key: "season", label: "Saison" },
   { key: "amount", label: "Montant", type: "number" },
-  { key: "paid", label: "Payée", type: "bool" }, { key: "method", label: "Moyen" },
+  { key: "status", label: "Statut", type: "select", options: ["Payée", "En attente", "À renouveler", "Impayée"] },
+  { key: "paid_date", label: "Payée le", type: "date" },
+  { key: "due_date", label: "Échéance", type: "date" },
+  { key: "method", label: "Moyen" },
 ];
-const financeFields: Field[] = [
-  { key: "entry_date", label: "Date", type: "date" },
-  { key: "kind", label: "Type", type: "select", options: ["Recette", "Dépense"] },
-  { key: "label", label: "Libellé" }, { key: "category", label: "Catégorie" },
-  { key: "amount", label: "Montant", type: "number" }, { key: "notes", label: "Notes", type: "textarea" },
+const recetteFields: Field[] = [
+  { key: "entry_date", label: "Date", type: "date" }, { key: "label", label: "Libellé" },
+  { key: "category", label: "Catégorie" }, { key: "counterparty", label: "Origine" },
+  { key: "amount", label: "Montant", type: "number" },
+  { key: "justificatif", label: "Justificatif (lien)" }, { key: "linked", label: "Lié à" },
+  { key: "notes", label: "Commentaire", type: "textarea" },
 ];
+const depenseFields: Field[] = [
+  { key: "entry_date", label: "Date", type: "date" }, { key: "label", label: "Libellé" },
+  { key: "category", label: "Catégorie" }, { key: "counterparty", label: "Fournisseur / bénéficiaire" },
+  { key: "amount", label: "Montant", type: "number" },
+  { key: "justificatif", label: "Justificatif (lien)" }, { key: "linked", label: "Lié à" },
+  { key: "notes", label: "Commentaire", type: "textarea" },
+];
+const invoiceFields: Field[] = [
+  { key: "number", label: "N°" }, { key: "inv_date", label: "Date", type: "date" },
+  { key: "party", label: "Émetteur / destinataire" }, { key: "amount", label: "Montant", type: "number" },
+  { key: "status", label: "Statut", type: "select", options: ["À payer", "Payée", "En retard"] },
+  { key: "due_date", label: "Échéance", type: "date" }, { key: "file", label: "Fichier (lien)" },
+  { key: "notes", label: "Notes", type: "textarea" },
+];
+const budgetFields: Field[] = [
+  { key: "category", label: "Catégorie" }, { key: "event", label: "Événement (optionnel)" },
+  { key: "planned", label: "Prévu", type: "number" }, { key: "notes", label: "Notes", type: "textarea" },
+];
+
+function BudgetModule() {
+  const [bl, setBl] = useState<Record<string, unknown>[]>([]);
+  const [fin, setFin] = useState<{ kind: string; category: string; amount: number }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(false);
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    (async () => {
+      if (!supabase) return;
+      setLoading(true);
+      const [b, f] = await Promise.all([
+        supabase.from("budget_lines").select("*").order("category"),
+        supabase.from("finance_entries").select("kind,category,amount"),
+      ]);
+      if (b.error) setErr(true); else { setErr(false); setBl((b.data as Record<string, unknown>[]) || []); }
+      setFin((f.data as { kind: string; category: string; amount: number }[]) || []);
+      setLoading(false);
+    })();
+  }, [tick]);
+  if (err) return <div className="bu-empty">Module non activé (table « budget_lines » absente). Lance le SQL fourni.</div>;
+  if (loading) return <p className="bu-muted">Chargement…</p>;
+  const rec = fin.filter((x) => x.kind === "Recette").reduce((s, x) => s + (Number(x.amount) || 0), 0);
+  const dep = fin.filter((x) => x.kind === "Dépense").reduce((s, x) => s + (Number(x.amount) || 0), 0);
+  const depByCat = (c: string) => fin.filter((x) => x.kind === "Dépense" && x.category === c).reduce((s, x) => s + (Number(x.amount) || 0), 0);
+  return (
+    <div>
+      <div className="bu-kpis" style={{ marginBottom: "1rem" }}>
+        <Kpi label="Recettes" value={eur(rec)} tone="pos" />
+        <Kpi label="Dépenses" value={eur(dep)} tone="neg" />
+        <Kpi label="Trésorerie" value={eur(rec - dep)} />
+      </div>
+      <div className="bu-toolbar"><strong>Prévisionnel vs réalisé</strong><button className="bu-btn bu-btn--ghost" onClick={() => setTick((t) => t + 1)}>↻ Actualiser</button></div>
+      <div className="bu-tablewrap"><table className="bu-table">
+        <thead><tr><th>Catégorie</th><th>Prévu</th><th>Réalisé (dépenses)</th><th>Écart</th></tr></thead>
+        <tbody>
+          {bl.length === 0 ? <tr><td colSpan={4} className="bu-muted">Aucune ligne de budget.</td></tr> :
+            bl.map((l) => {
+              const r = depByCat(l.category as string);
+              const ec = (Number(l.planned) || 0) - r;
+              return <tr key={String(l.id)}><td>{l.category as string}{l.event ? ` · ${l.event}` : ""}</td><td>{eur(l.planned as number)}</td><td>{eur(r)}</td><td style={{ color: ec < 0 ? "#e88a8a" : "#5bd08d" }}>{eur(ec)}</td></tr>;
+            })}
+        </tbody>
+      </table></div>
+      <p className="bu-muted" style={{ margin: ".9rem 0 .4rem" }}>Lignes de budget prévisionnel :</p>
+      <Crud table="budget_lines" fields={budgetFields} orderBy="category" desc={false} />
+    </div>
+  );
+}
 const docFields = (cat: string): Field[] => [
   { key: "title", label: "Titre" }, { key: "link", label: "Lien" },
   { key: "doc_date", label: "Date", type: "date" }, { key: "notes", label: "Notes", type: "textarea" },
@@ -289,14 +354,14 @@ const SECTIONS: Section[] = [
   { key: "dash", icon: "🏠", label: "Tableau de bord", subs: [{ key: "d", label: "Vue d'ensemble", render: () => <DashboardBureau /> }] },
   { key: "adherents", icon: "👥", label: "Adhérents", subs: [
     { key: "liste", label: "Liste des membres", render: () => <Crud table="members" fields={memberFields} orderBy="last_name" desc={false} /> },
-    { key: "cotis", label: "Cotisations", render: () => <Crud table="dues" fields={duesFields} /> },
+    { key: "cotis", label: "Cotisations", render: () => <Crud table="dues" fields={duesFields} orderBy="due_date" /> },
     { key: "docs", label: "Documents", render: () => <Crud table="documents" fields={docFields("Administratif")} filter={(r) => r.category === "Administratif"} defaults={{ category: "Administratif" }} /> },
   ] },
   { key: "finance", icon: "💰", label: "Finance", subs: [
-    { key: "recettes", label: "Recettes", render: () => <Crud table="finance_entries" fields={financeFields} filter={(r) => r.kind === "Recette"} defaults={{ kind: "Recette" }} orderBy="entry_date" /> },
-    { key: "depenses", label: "Dépenses", render: () => <Crud table="finance_entries" fields={financeFields} filter={(r) => r.kind === "Dépense"} defaults={{ kind: "Dépense" }} orderBy="entry_date" /> },
-    { key: "factures", label: "Factures", render: () => <Placeholder label="Factures" /> },
-    { key: "budget", label: "Budget & solde", render: () => <Crud table="finance_entries" fields={financeFields} orderBy="entry_date" summary={financeSummary} /> },
+    { key: "recettes", label: "Recettes", render: () => <Crud table="finance_entries" fields={recetteFields} filter={(r) => r.kind === "Recette"} defaults={{ kind: "Recette" }} orderBy="entry_date" /> },
+    { key: "depenses", label: "Dépenses", render: () => <Crud table="finance_entries" fields={depenseFields} filter={(r) => r.kind === "Dépense"} defaults={{ kind: "Dépense" }} orderBy="entry_date" /> },
+    { key: "factures", label: "Factures", render: () => <Crud table="invoices" fields={invoiceFields} orderBy="inv_date" /> },
+    { key: "budget", label: "Budget", render: () => <BudgetModule /> },
   ] },
   { key: "events", icon: "📅", label: "Événements", subs: [
     { key: "cal", label: "Calendrier", render: () => <Placeholder label="Calendrier événements" /> },

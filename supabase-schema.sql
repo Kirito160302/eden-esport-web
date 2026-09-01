@@ -243,3 +243,32 @@ begin
     execute format('create policy "%s_bureau_all" on public.%I for all to authenticated using (public.is_bureau()) with check (public.is_bureau())', t, t);
   end loop;
 end $$;
+
+-- ============================================================
+--  BUREAU — Priorité 1 : Finance détaillée + statuts cotisation
+-- ============================================================
+alter table public.dues
+  add column if not exists status text,
+  add column if not exists due_date date,
+  add column if not exists paid_date date;
+alter table public.finance_entries
+  add column if not exists counterparty text,
+  add column if not exists justificatif text,
+  add column if not exists linked text;
+
+create table if not exists public.invoices (
+  id uuid primary key default gen_random_uuid(),
+  number text, inv_date date, party text, amount numeric, status text,
+  due_date date, file text, notes text, created_at timestamptz default now()
+);
+create table if not exists public.budget_lines (
+  id uuid primary key default gen_random_uuid(),
+  category text, event text, planned numeric, notes text, created_at timestamptz default now()
+);
+do $$ declare t text; begin
+  foreach t in array array['invoices','budget_lines'] loop
+    execute format('alter table public.%I enable row level security', t);
+    execute format('drop policy if exists "%s_bureau_all" on public.%I', t, t);
+    execute format('create policy "%s_bureau_all" on public.%I for all to authenticated using (public.is_bureau()) with check (public.is_bureau())', t, t);
+  end loop;
+end $$;
