@@ -538,3 +538,45 @@ alter table public.subventions enable row level security;
 drop policy if exists "subventions_bureau_all" on public.subventions;
 create policy "subventions_bureau_all" on public.subventions
   for all to authenticated using (public.is_bureau()) with check (public.is_bureau());
+
+-- ============================================================
+--  BUREAU — PERMISSIONS FINES PAR RÔLE (RLS serveur) 02/09/2026
+--  Président ou sans rôle = accès complet (anti-blocage).
+-- ============================================================
+create or replace function public.bu_can(dom text) returns boolean
+  language sql stable security definer set search_path = public as $$
+  select coalesce((select is_bureau from public.profiles where id = auth.uid()), false)
+    and (
+      coalesce((select bureau_role from public.profiles where id = auth.uid()), '') in ('', 'Président')
+      or case (select bureau_role from public.profiles where id = auth.uid())
+           when 'Trésorier'                then dom in ('finance','adherents')
+           when 'Secrétaire'               then dom in ('docs')
+           when 'Responsable esport'       then dom in ('teams')
+           when 'Responsable événements'   then dom in ('events','material')
+           when 'Bénévole'                 then dom in ('events')
+           else false
+         end
+    );
+$$;
+grant execute on function public.bu_can(text) to authenticated;
+
+-- Remplace les politiques « accès à tout le bureau » par des politiques par domaine.
+-- (documents, subventions, chat_*, activity_log, profiles restent inchangés : accès bureau commun.)
+do $$
+declare rec record;
+begin
+  for rec in select * from (values
+    ('members','adherents'), ('dues','adherents'),
+    ('finance_entries','finance'), ('invoices','finance'), ('budget_lines','finance'),
+    ('org_events','events'), ('event_participants','events'), ('event_tasks','events'),
+    ('partner_contacts','partners'), ('partner_contracts','partners'), ('partner_followups','partners'),
+    ('bu_players','teams'), ('bu_staff','teams'), ('bu_competitions','teams'),
+    ('equipment','material'), ('loans','material')
+  ) as t(tbl, dom)
+  loop
+    execute format('alter table public.%I enable row level security', rec.tbl);
+    execute format('drop policy if exists "%s_bureau_all" on public.%I', rec.tbl, rec.tbl);
+    execute format('drop policy if exists "%s_role" on public.%I', rec.tbl, rec.tbl);
+    execute format('create policy "%s_role" on public.%I for all to authenticated using (public.bu_can(%L)) with check (public.bu_can(%L))', rec.tbl, rec.tbl, rec.dom, rec.dom);
+  end loop;
+end $$;

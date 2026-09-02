@@ -447,7 +447,7 @@ function UsersModule() {
 function RolesModule() {
   return (
     <div>
-      <p className="bu-muted" style={{ marginBottom: ".8rem" }}>Rôles de référence (attribution dans Administration → Utilisateurs). L&apos;application fine des restrictions par rubrique pourra être activée ensuite.</p>
+      <p className="bu-muted" style={{ marginBottom: ".8rem" }}>Rôles et rubriques accessibles. L&apos;attribution se fait dans Administration → Utilisateurs. Les restrictions sont appliquées dans le menu <strong>et côté serveur (RLS)</strong>. Un compte sans rôle ou « Président » a l&apos;accès complet.</p>
       <div className="bu-tablewrap"><table className="bu-table">
         <thead><tr><th>Rôle</th><th>Accès prévu</th></tr></thead>
         <tbody>{ROLE_MATRIX.map(([role, desc]) => <tr key={role}><td><strong>{role}</strong></td><td>{desc}</td></tr>)}</tbody>
@@ -958,12 +958,12 @@ const competitionFields: Field[] = [
 
 const BUREAU_ROLES = ["", "Président", "Trésorier", "Secrétaire", "Responsable esport", "Responsable événements", "Bénévole"];
 const ROLE_MATRIX: [string, string][] = [
-  ["Président", "Accès global à toutes les rubriques."],
-  ["Trésorier", "Finance + Adhérents (cotisations)."],
-  ["Secrétaire", "Administratif + Documents + Réunions."],
-  ["Responsable esport", "Équipes + Joueurs + Compétitions."],
-  ["Responsable événements", "Événements + Matériel."],
-  ["Bénévole", "Tâches + événements autorisés."],
+  ["Président", "Accès complet à toutes les rubriques (+ sans rôle = complet)."],
+  ["Trésorier", "Tableau de bord · Adhérents · Finance · Messagerie."],
+  ["Secrétaire", "Tableau de bord · Documents · Messagerie."],
+  ["Responsable esport", "Tableau de bord · Équipes · Messagerie."],
+  ["Responsable événements", "Tableau de bord · Événements · Matériel · Messagerie."],
+  ["Bénévole", "Tableau de bord · Événements · Messagerie."],
 ];
 
 type Sub = { key: string; label: string; render: () => React.ReactNode };
@@ -1083,14 +1083,31 @@ function NotificationsBell({ unreadChat, onNav }: { unreadChat: number; onNav: (
 }
 
 /* ================================================================
+   PERMISSIONS PAR RÔLE (menu + reflète la RLS serveur)
+   ================================================================ */
+const ROLE_ACCESS: Record<string, string[]> = {
+  "Trésorier": ["dash", "adherents", "finance", "messagerie"],
+  "Secrétaire": ["dash", "docs", "messagerie"],
+  "Responsable esport": ["dash", "teams", "messagerie"],
+  "Responsable événements": ["dash", "events", "material", "messagerie"],
+  "Bénévole": ["dash", "events", "messagerie"],
+};
+function sectionsForRole(role?: string | null): string[] {
+  if (!role || role === "Président") return SECTIONS.map((s) => s.key); // accès complet
+  return ROLE_ACCESS[role] || SECTIONS.map((s) => s.key); // rôle inconnu → complet (sécurité anti-blocage)
+}
+
+/* ================================================================
    APPLI BUREAU (shell)
    ================================================================ */
-function BureauApp({ pseudo, meId, onLogout }: { pseudo: string; meId: string; onLogout: () => void }) {
-  const [sec, setSec] = useState("dash");
-  const [sub, setSub] = useState("d");
+function BureauApp({ pseudo, meId, role, onLogout }: { pseudo: string; meId: string; role?: string | null; onLogout: () => void }) {
+  const allowedKeys = sectionsForRole(role);
+  const visibleSections = SECTIONS.filter((s) => allowedKeys.includes(s.key));
+  const [sec, setSec] = useState(visibleSections[0]?.key || "dash");
+  const [sub, setSub] = useState(visibleSections[0]?.subs[0]?.key || "d");
   const [navOpen, setNavOpen] = useState(false);
   const [unreadTotal, setUnreadTotal] = useState(0);
-  const section = SECTIONS.find((s) => s.key === sec) || SECTIONS[0];
+  const section = visibleSections.find((s) => s.key === sec) || visibleSections[0] || SECTIONS[0];
   const current = section.subs.find((x) => x.key === sub) || section.subs[0];
 
   // total de messages non lus pour la pastille du menu
@@ -1115,7 +1132,7 @@ function BureauApp({ pseudo, meId, onLogout }: { pseudo: string; meId: string; o
       <aside className={"bu-side" + (navOpen ? " open" : "")}>
         <div className="bu-brand">Bureau · Eden</div>
         <nav>
-          {SECTIONS.map((s) => (
+          {visibleSections.map((s) => (
             <div key={s.key} className="bu-navgroup">
               <button className={"bu-navsec" + (s.key === sec ? " on" : "")} onClick={() => go(s.key, s.subs[0].key)}>
                 <span>{s.icon}</span> {s.label}
@@ -1173,15 +1190,16 @@ function LoginBureau() {
 
 export default function Bureau() {
   const [ready, setReady] = useState(false);
-  const [profile, setProfile] = useState<{ id: string; pseudo: string; is_bureau?: boolean } | null>(null);
+  const [profile, setProfile] = useState<{ id: string; pseudo: string; is_bureau?: boolean; bureau_role?: string | null } | null>(null);
 
   const loadProfile = useCallback(async () => {
     if (!supabase) { setReady(true); return; }
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { setProfile(null); setReady(true); return; }
-    let r = await supabase.from("profiles").select("id,pseudo,is_bureau").eq("id", session.user.id).maybeSingle();
+    let r = await supabase.from("profiles").select("id,pseudo,is_bureau,bureau_role").eq("id", session.user.id).maybeSingle();
+    if (r.error) r = await supabase.from("profiles").select("id,pseudo,is_bureau").eq("id", session.user.id).maybeSingle();
     if (r.error) r = await supabase.from("profiles").select("id,pseudo").eq("id", session.user.id).maybeSingle();
-    setProfile((r.data as { id: string; pseudo: string; is_bureau?: boolean }) || null);
+    setProfile((r.data as { id: string; pseudo: string; is_bureau?: boolean; bureau_role?: string | null }) || null);
     setReady(true);
   }, []);
 
@@ -1206,5 +1224,5 @@ export default function Bureau() {
       </div>
     );
   }
-  return <BureauApp pseudo={profile.pseudo} meId={profile.id} onLogout={logout} />;
+  return <BureauApp pseudo={profile.pseudo} meId={profile.id} role={profile.bureau_role} onLogout={logout} />;
 }
