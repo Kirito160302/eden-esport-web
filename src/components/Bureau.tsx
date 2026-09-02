@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { getSupabase, SUPABASE_ENABLED } from "@/lib/supabase";
 
 const supabase = getSupabase();
@@ -323,6 +323,198 @@ function Placeholder({ label }: { label: string }) {
 }
 
 /* ================================================================
+   MESSAGERIE INTERNE — canaux + messages directs (temps réel)
+   ================================================================ */
+type ChatChannel = { id: string; name: string; description?: string | null };
+type ChatDm = { id: string; user_a: string; user_b: string };
+type ChatMsg = { id: string; sender: string; body: string; created_at: string; channel_id?: string | null; dm_id?: string | null };
+type Convo = { kind: "channel" | "dm"; id: string; label: string; other?: string };
+
+function MessengerModule() {
+  const [meId, setMeId] = useState("");
+  const [who, setWho] = useState<Record<string, string>>({});
+  const [channels, setChannels] = useState<ChatChannel[]>([]);
+  const [members, setMembers] = useState<{ id: string; pseudo: string }[]>([]);
+  const [dms, setDms] = useState<ChatDm[]>([]);
+  const [active, setActive] = useState<Convo | null>(null);
+  const [msgs, setMsgs] = useState<ChatMsg[]>([]);
+  const [text, setText] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [newChan, setNewChan] = useState(false);
+  const [chanName, setChanName] = useState("");
+  const [showStart, setShowStart] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const boot = useCallback(async () => {
+    if (!supabase) return;
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    const uid = user?.id || "";
+    setMeId(uid);
+    const [ch, pr, dm] = await Promise.all([
+      supabase.from("chat_channels").select("*").order("created_at"),
+      supabase.from("profiles").select("id,pseudo,is_bureau"),
+      supabase.from("chat_dms").select("*"),
+    ]);
+    if (ch.error) { setErr(true); setLoading(false); return; }
+    setErr(false);
+    const chs = (ch.data as ChatChannel[]) || [];
+    setChannels(chs);
+    const profs = (pr.data as { id: string; pseudo: string; is_bureau?: boolean }[]) || [];
+    const map: Record<string, string> = {};
+    profs.forEach((p) => { map[p.id] = p.pseudo || "—"; });
+    setWho(map);
+    setMembers(profs.filter((p) => p.is_bureau && p.id !== uid).map((p) => ({ id: p.id, pseudo: p.pseudo || "—" })));
+    setDms((dm.data as ChatDm[]) || []);
+    setActive((a) => a || (chs[0] ? { kind: "channel", id: chs[0].id, label: "# " + chs[0].name } : null));
+    setLoading(false);
+  }, []);
+  useEffect(() => { boot(); }, [boot]);
+
+  // chargement des messages + abonnement temps réel à la conversation active
+  useEffect(() => {
+    if (!supabase || !active) return;
+    let cancelled = false;
+    const col = active.kind === "channel" ? "channel_id" : "dm_id";
+    (async () => {
+      const res = await supabase!.from("chat_messages").select("*").eq(col, active.id).order("created_at").limit(500);
+      if (!cancelled) setMsgs((res.data as ChatMsg[]) || []);
+    })();
+    const rt = supabase
+      .channel("chat:" + active.kind + ":" + active.id)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages", filter: `${col}=eq.${active.id}` },
+        (payload) => {
+          const m = payload.new as ChatMsg;
+          setMsgs((p) => (p.some((x) => x.id === m.id) ? p : [...p, m]));
+        })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "chat_messages" },
+        (payload) => {
+          const old = payload.old as { id?: string };
+          if (old?.id) setMsgs((p) => p.filter((x) => x.id !== old.id));
+        })
+      .subscribe();
+    return () => { cancelled = true; supabase!.removeChannel(rt); };
+  }, [active]);
+
+  useEffect(() => { const el = scrollRef.current; if (el) el.scrollTop = el.scrollHeight; }, [msgs, active]);
+
+  async function send(e: React.FormEvent) {
+    e.preventDefault();
+    if (!supabase || !active || !text.trim()) return;
+    setSending(true);
+    const body = text.trim();
+    const row: Record<string, string> = active.kind === "channel" ? { channel_id: active.id, body } : { dm_id: active.id, body };
+    const { data, error } = await supabase.from("chat_messages").insert(row).select().single();
+    setSending(false);
+    if (error) { alert("Envoi impossible : " + error.message); return; }
+    setText("");
+    if (data) { const m = data as ChatMsg; setMsgs((p) => (p.some((x) => x.id === m.id) ? p : [...p, m])); }
+  }
+
+  async function delMsg(id: string) {
+    if (!supabase || !confirm("Supprimer ce message ?")) return;
+    await supabase.from("chat_messages").delete().eq("id", id);
+    setMsgs((p) => p.filter((x) => x.id !== id));
+  }
+
+  async function createChannel(e: React.FormEvent) {
+    e.preventDefault();
+    if (!supabase || !chanName.trim()) return;
+    const name = chanName.trim().replace(/^#+\s*/, "");
+    const { data, error } = await supabase.from("chat_channels").insert({ name }).select().single();
+    if (error) { alert("Création impossible : " + error.message); return; }
+    const c = data as ChatChannel;
+    setChannels((p) => [...p, c]);
+    setChanName(""); setNewChan(false);
+    setActive({ kind: "channel", id: c.id, label: "# " + c.name });
+  }
+
+  async function openDm(otherId: string, pseudo: string) {
+    if (!supabase) return;
+    const { data, error } = await supabase.rpc("get_or_create_dm", { other: otherId });
+    if (error) { alert("Impossible d'ouvrir la conversation : " + error.message); return; }
+    const id = data as string;
+    setDms((p) => (p.some((d) => d.id === id) ? p : [...p, { id, user_a: meId, user_b: otherId }]));
+    setShowStart(false);
+    setActive({ kind: "dm", id, label: pseudo, other: otherId });
+  }
+
+  if (err) return <div className="bu-empty">Messagerie non activée (table « chat_channels » absente). Lance le SQL fourni dans Supabase.</div>;
+  if (loading) return <p className="bu-muted">Chargement…</p>;
+
+  const dmList = dms.map((d) => ({ id: d.id, other: d.user_a === meId ? d.user_b : d.user_a }));
+
+  return (
+    <div className="bu-msgr">
+      <aside className="bu-msgr-side">
+        <div className="bu-msgr-h"><span>Canaux</span>
+          <button className="bu-msgr-add" onClick={() => setNewChan((v) => !v)} aria-label="Nouveau canal">＋</button>
+        </div>
+        {newChan && (
+          <form className="bu-msgr-newc" onSubmit={createChannel}>
+            <input placeholder="nom-du-canal" value={chanName} onChange={(e) => setChanName(e.target.value)} autoFocus />
+            <button className="bu-btn bu-btn--sm" type="submit">OK</button>
+          </form>
+        )}
+        <div className="bu-msgr-list">
+          {channels.length === 0 ? <span className="bu-muted bu-msgr-none">Aucun canal.</span> :
+            channels.map((c) => (
+              <button key={c.id} className={"bu-msgr-item" + (active?.kind === "channel" && active.id === c.id ? " on" : "")}
+                onClick={() => setActive({ kind: "channel", id: c.id, label: "# " + c.name })}># {c.name}</button>
+            ))}
+        </div>
+
+        <div className="bu-msgr-h"><span>Messages directs</span>
+          <button className="bu-msgr-add" onClick={() => setShowStart((v) => !v)} aria-label="Nouvelle conversation">＋</button>
+        </div>
+        {showStart && (
+          <div className="bu-msgr-start">
+            {members.length === 0 ? <span className="bu-muted bu-msgr-none">Aucun autre membre du bureau.</span> :
+              members.map((m) => (
+                <button key={m.id} className="bu-msgr-item ghost" onClick={() => openDm(m.id, m.pseudo)}>＋ {m.pseudo}</button>
+              ))}
+          </div>
+        )}
+        <div className="bu-msgr-list">
+          {dmList.length === 0 ? <span className="bu-muted bu-msgr-none">Aucune conversation.</span> :
+            dmList.map((d) => (
+              <button key={d.id} className={"bu-msgr-item" + (active?.kind === "dm" && active.id === d.id ? " on" : "")}
+                onClick={() => setActive({ kind: "dm", id: d.id, label: who[d.other] || "—", other: d.other })}>💬 {who[d.other] || "—"}</button>
+            ))}
+        </div>
+      </aside>
+
+      <section className="bu-msgr-main">
+        <div className="bu-msgr-title">{active ? active.label : "Sélectionne une conversation"}</div>
+        <div className="bu-msgr-scroll" ref={scrollRef}>
+          {!active ? <p className="bu-muted">Choisis un canal ou un message direct à gauche.</p> :
+            msgs.length === 0 ? <p className="bu-muted">Aucun message. Lance la discussion !</p> :
+              msgs.map((m) => {
+                const mine = m.sender === meId;
+                return (
+                  <div key={m.id} className={"bu-msg" + (mine ? " mine" : "")}>
+                    {!mine && <div className="bu-msg-who">{who[m.sender] || "—"}</div>}
+                    <div className="bu-msg-bubble">
+                      <span>{m.body}</span>
+                      {mine && <button className="bu-msg-del" onClick={() => delMsg(m.id)} aria-label="Supprimer">✕</button>}
+                    </div>
+                    <div className="bu-msg-time">{new Date(m.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</div>
+                  </div>
+                );
+              })}
+        </div>
+        <form className="bu-msgr-input" onSubmit={send}>
+          <input placeholder={active ? "Écris un message…" : "Sélectionne une conversation"} value={text} onChange={(e) => setText(e.target.value)} disabled={!active} />
+          <button className="bu-btn" type="submit" disabled={!active || sending || !text.trim()}>Envoyer</button>
+        </form>
+      </section>
+    </div>
+  );
+}
+
+/* ================================================================
    NAVIGATION
    ================================================================ */
 const DOC_CATS = ["Statuts", "PV / réunion", "Subvention", "Administratif"];
@@ -527,6 +719,9 @@ const SECTIONS: Section[] = [
   { key: "material", icon: "📦", label: "Matériel", subs: [
     { key: "inv", label: "Inventaire", render: () => <Crud table="equipment" fields={equipmentFields} orderBy="name" desc={false} /> },
     { key: "prets", label: "Prêts", render: () => <Crud table="loans" fields={loanFields} orderBy="out_date" /> },
+  ] },
+  { key: "messagerie", icon: "💬", label: "Messagerie", subs: [
+    { key: "chat", label: "Discussions", render: () => <MessengerModule /> },
   ] },
   { key: "admin", icon: "⚙️", label: "Administration", subs: [
     { key: "users", label: "Utilisateurs & accès", render: () => <UsersModule /> },

@@ -360,3 +360,106 @@ do $$ declare t text; begin
     execute format('create policy "%s_bureau_all" on public.%I for all to authenticated using (public.is_bureau()) with check (public.is_bureau())', t, t);
   end loop;
 end $$;
+
+-- ============================================================
+--  BUREAU — MESSAGERIE INTERNE (canaux + messages directs, temps réel)
+-- ============================================================
+
+-- Canaux publics (visibles par tout le bureau)
+create table if not exists public.chat_channels (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  description text,
+  created_by uuid default auth.uid(),
+  created_at timestamptz default now()
+);
+
+-- Conversations privées entre deux membres du bureau (paire ordonnée user_a < user_b)
+create table if not exists public.chat_dms (
+  id uuid primary key default gen_random_uuid(),
+  user_a uuid not null,
+  user_b uuid not null,
+  created_at timestamptz default now(),
+  unique (user_a, user_b)
+);
+
+-- Messages : rattachés à un canal OU à un DM
+create table if not exists public.chat_messages (
+  id uuid primary key default gen_random_uuid(),
+  channel_id uuid references public.chat_channels(id) on delete cascade,
+  dm_id uuid references public.chat_dms(id) on delete cascade,
+  sender uuid default auth.uid(),
+  body text not null,
+  created_at timestamptz default now()
+);
+create index if not exists chat_messages_channel_idx on public.chat_messages(channel_id, created_at);
+create index if not exists chat_messages_dm_idx on public.chat_messages(dm_id, created_at);
+
+alter table public.chat_channels enable row level security;
+alter table public.chat_dms      enable row level security;
+alter table public.chat_messages enable row level security;
+
+-- Canaux : lecture + écriture pour le bureau
+drop policy if exists "chat_channels_bureau" on public.chat_channels;
+create policy "chat_channels_bureau" on public.chat_channels
+  for all to authenticated using (public.is_bureau()) with check (public.is_bureau());
+
+-- DM : seuls les deux participants (et membres du bureau)
+drop policy if exists "chat_dms_parts" on public.chat_dms;
+create policy "chat_dms_parts" on public.chat_dms
+  for all to authenticated
+  using (public.is_bureau() and auth.uid() in (user_a, user_b))
+  with check (public.is_bureau() and auth.uid() in (user_a, user_b));
+
+-- Messages : canal -> tout le bureau ; DM -> uniquement les participants
+drop policy if exists "chat_messages_select" on public.chat_messages;
+create policy "chat_messages_select" on public.chat_messages
+  for select to authenticated using (
+    public.is_bureau() and (
+      channel_id is not null
+      or exists (select 1 from public.chat_dms d where d.id = chat_messages.dm_id and auth.uid() in (d.user_a, d.user_b))
+    )
+  );
+
+drop policy if exists "chat_messages_insert" on public.chat_messages;
+create policy "chat_messages_insert" on public.chat_messages
+  for insert to authenticated with check (
+    public.is_bureau() and sender = auth.uid() and (
+      channel_id is not null
+      or exists (select 1 from public.chat_dms d where d.id = chat_messages.dm_id and auth.uid() in (d.user_a, d.user_b))
+    )
+  );
+
+-- Chacun peut supprimer ses propres messages
+drop policy if exists "chat_messages_delete" on public.chat_messages;
+create policy "chat_messages_delete" on public.chat_messages
+  for delete to authenticated using (public.is_bureau() and sender = auth.uid());
+
+-- Ouvrir/retrouver une conversation directe (ordonne la paire, vérifie que la cible est bien bureau)
+create or replace function public.get_or_create_dm(other uuid)
+  returns uuid language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); a uuid; b uuid; found uuid;
+begin
+  if not public.is_bureau() then raise exception 'Réservé au bureau'; end if;
+  if other = me then raise exception 'Conversation avec soi-même impossible'; end if;
+  if not exists (select 1 from public.profiles p where p.id = other and coalesce(p.is_bureau,false)) then
+    raise exception 'Le destinataire n''est pas membre du bureau';
+  end if;
+  if me < other then a := me; b := other; else a := other; b := me; end if;
+  select id into found from public.chat_dms where user_a = a and user_b = b;
+  if found is null then
+    insert into public.chat_dms(user_a, user_b) values (a, b) returning id into found;
+  end if;
+  return found;
+end; $$;
+grant execute on function public.get_or_create_dm(uuid) to authenticated;
+
+-- Temps réel : diffuser les changements de chat_messages (respecte la RLS ci-dessus)
+do $$ begin
+  alter publication supabase_realtime add table public.chat_messages;
+exception when others then null; end $$;
+
+-- Canal général par défaut
+insert into public.chat_channels(name, description)
+select 'général', 'Canal général du bureau'
+where not exists (select 1 from public.chat_channels);
