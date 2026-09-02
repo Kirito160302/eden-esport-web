@@ -226,24 +226,141 @@ function Kpi({ label, value, tone }: { label: string; value: string; tone?: "pos
 }
 
 /* ================================================================
+   GRAPHIQUES (SVG maison, thème sombre)
+   ================================================================ */
+const C_REC = "#5bd08d", C_DEP = "#e88a8a";
+const STATUS_COLORS: Record<string, string> = { "Payée": "#5bd08d", "En attente": "#f6c95c", "À renouveler": "#7d5cff", "Impayée": "#e26d6d" };
+
+function ChartCard({ title, children, empty }: { title: string; children: React.ReactNode; empty?: boolean }) {
+  return (
+    <div className="bu-chart">
+      <div className="bu-chart-t">{title}</div>
+      {empty ? <p className="bu-muted" style={{ padding: ".5rem 0" }}>Pas encore de données.</p> : children}
+    </div>
+  );
+}
+
+function MonthlyBars({ data }: { data: { label: string; rec: number; dep: number }[] }) {
+  const W = 560, H = 210, padB = 26, padT = 10, padL = 6, padR = 6;
+  const max = Math.max(1, ...data.flatMap((d) => [d.rec, d.dep]));
+  const slot = (W - padL - padR) / data.length;
+  const bw = Math.min(22, slot / 2 - 6);
+  const y = (v: number) => padT + (H - padT - padB) * (1 - v / max);
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="bu-svg" role="img" aria-label="Recettes et dépenses par mois">
+      {[0.25, 0.5, 0.75, 1].map((g) => <line key={g} x1={padL} x2={W - padR} y1={y(max * g)} y2={y(max * g)} stroke="var(--line-2)" strokeWidth={1} />)}
+      {data.map((d, i) => {
+        const cx = padL + slot * i + slot / 2;
+        return (
+          <g key={d.label}>
+            <rect x={cx - bw - 2} y={y(d.rec)} width={bw} height={H - padB - y(d.rec)} rx={3} fill={C_REC}><title>{d.label} · Recettes {eur(d.rec)}</title></rect>
+            <rect x={cx + 2} y={y(d.dep)} width={bw} height={H - padB - y(d.dep)} rx={3} fill={C_DEP}><title>{d.label} · Dépenses {eur(d.dep)}</title></rect>
+            <text x={cx} y={H - 8} textAnchor="middle" className="bu-svg-lab">{d.label}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function Donut({ data }: { data: { label: string; value: number; color: string }[] }) {
+  const total = data.reduce((s, d) => s + d.value, 0);
+  const r = 60, cx = 80, cy = 80, C = 2 * Math.PI * r;
+  let acc = 0;
+  return (
+    <div className="bu-donut">
+      <svg viewBox="0 0 160 160" width={150} height={150} role="img" aria-label="Répartition">
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--line-2)" strokeWidth={18} />
+        {total > 0 && data.map((d) => {
+          const frac = d.value / total;
+          const seg = (
+            <circle key={d.label} cx={cx} cy={cy} r={r} fill="none" stroke={d.color} strokeWidth={18}
+              strokeDasharray={`${frac * C} ${C}`} strokeDashoffset={-acc * C} transform={`rotate(-90 ${cx} ${cy})`}>
+              <title>{d.label} : {d.value}</title>
+            </circle>
+          );
+          acc += frac;
+          return seg;
+        })}
+        <text x={cx} y={cy - 2} textAnchor="middle" className="bu-donut-n">{total}</text>
+        <text x={cx} y={cy + 16} textAnchor="middle" className="bu-svg-lab">total</text>
+      </svg>
+      <div className="bu-legend">
+        {data.map((d) => <div key={d.label} className="bu-leg"><span style={{ background: d.color }} />{d.label} <strong>{d.value}</strong></div>)}
+      </div>
+    </div>
+  );
+}
+
+function HBars({ data }: { data: { label: string; value: number }[] }) {
+  const max = Math.max(1, ...data.map((d) => d.value));
+  return (
+    <div className="bu-hbars">
+      {data.map((d) => (
+        <div key={d.label} className="bu-hbar">
+          <span className="bu-hbar-l" title={d.label}>{d.label}</span>
+          <span className="bu-hbar-track"><span className="bu-hbar-fill" style={{ width: `${(d.value / max) * 100}%` }} /></span>
+          <span className="bu-hbar-v">{eur(d.value)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ================================================================
    TABLEAU DE BORD
    ================================================================ */
+type FinRow = { kind: string; amount: number; category: string | null; entry_date: string | null };
 function DashboardBureau() {
-  const [k, setK] = useState<{ members?: number; duesPaid?: number; solde?: number; docs?: number } | null>(null);
+  const [k, setK] = useState<{ members: number; duesUp: number; solde: number; docs: number } | null>(null);
+  const [months, setMonths] = useState<{ label: string; rec: number; dep: number }[]>([]);
+  const [duesByStatus, setDuesByStatus] = useState<{ label: string; value: number; color: string }[]>([]);
+  const [depByCat, setDepByCat] = useState<{ label: string; value: number }[]>([]);
   useEffect(() => {
     (async () => {
       if (!supabase) return;
       const [m, d, fe, doc] = await Promise.all([
         supabase.from("members").select("id", { count: "exact", head: true }),
-        supabase.from("dues").select("paid"),
-        supabase.from("finance_entries").select("kind,amount"),
+        supabase.from("dues").select("status,paid"),
+        supabase.from("finance_entries").select("kind,amount,category,entry_date"),
         supabase.from("documents").select("id", { count: "exact", head: true }),
       ]);
-      const dues = (d.data as { paid: boolean }[]) || [];
-      const fin = (fe.data as { kind: string; amount: number }[]) || [];
+      const dues = (d.data as { status: string | null; paid: boolean }[]) || [];
+      const fin = (fe.data as FinRow[]) || [];
       const rec = fin.filter((x) => x.kind === "Recette").reduce((s, x) => s + (Number(x.amount) || 0), 0);
       const dep = fin.filter((x) => x.kind === "Dépense").reduce((s, x) => s + (Number(x.amount) || 0), 0);
-      setK({ members: m.count ?? 0, duesPaid: dues.filter((x) => x.paid).length, solde: rec - dep, docs: doc.count ?? 0 });
+      const upStatuses = new Set(["Payée"]);
+      const duesUp = dues.filter((x) => x.paid || (x.status && upStatuses.has(x.status))).length;
+      setK({ members: m.count ?? 0, duesUp, solde: rec - dep, docs: doc.count ?? 0 });
+
+      // 6 derniers mois
+      const now = new Date();
+      const buckets: { key: string; label: string; rec: number; dep: number }[] = [];
+      for (let i = 5; i >= 0; i--) {
+        const dt = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        buckets.push({ key: `${dt.getFullYear()}-${dt.getMonth()}`, label: dt.toLocaleDateString("fr-FR", { month: "short" }), rec: 0, dep: 0 });
+      }
+      const bmap = new Map(buckets.map((b) => [b.key, b]));
+      for (const x of fin) {
+        if (!x.entry_date) continue;
+        const dt = new Date(x.entry_date);
+        const b = bmap.get(`${dt.getFullYear()}-${dt.getMonth()}`);
+        if (!b) continue;
+        if (x.kind === "Recette") b.rec += Number(x.amount) || 0;
+        else if (x.kind === "Dépense") b.dep += Number(x.amount) || 0;
+      }
+      setMonths(buckets.map((b) => ({ label: b.label, rec: b.rec, dep: b.dep })));
+
+      // cotisations par statut
+      const scount: Record<string, number> = {};
+      for (const x of dues) { const s = x.status || (x.paid ? "Payée" : "En attente"); scount[s] = (scount[s] || 0) + 1; }
+      setDuesByStatus(Object.keys(STATUS_COLORS).filter((s) => scount[s]).map((s) => ({ label: s, value: scount[s], color: STATUS_COLORS[s] }))
+        .concat(Object.entries(scount).filter(([s]) => !STATUS_COLORS[s]).map(([s, v]) => ({ label: s, value: v, color: "#8a8aa0" }))));
+
+      // top catégories de dépenses
+      const ccount: Record<string, number> = {};
+      for (const x of fin) { if (x.kind !== "Dépense") continue; const c = x.category || "Sans catégorie"; ccount[c] = (ccount[c] || 0) + (Number(x.amount) || 0); }
+      setDepByCat(Object.entries(ccount).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([label, value]) => ({ label, value })));
     })();
   }, []);
   return (
@@ -251,12 +368,24 @@ function DashboardBureau() {
       <p className="bu-muted" style={{ marginBottom: "1rem" }}>Vue d&apos;ensemble de l&apos;association.</p>
       <div className="bu-kpis">
         <Kpi label="Adhérents" value={k ? String(k.members) : "…"} />
-        <Kpi label="Cotisations à jour" value={k ? String(k.duesPaid) : "…"} tone="pos" />
-        <Kpi label="Solde" value={k ? eur(k.solde || 0) : "…"} />
+        <Kpi label="Cotisations à jour" value={k ? String(k.duesUp) : "…"} tone="pos" />
+        <Kpi label="Solde" value={k ? eur(k.solde || 0) : "…"} tone={k && k.solde < 0 ? "neg" : "pos"} />
         <Kpi label="Documents" value={k ? String(k.docs) : "…"} />
       </div>
-      <div className="bu-empty" style={{ marginTop: "1.4rem" }}>
-        Utilise le menu à gauche pour gérer les adhérents, la finance, les documents, les partenaires et le matériel de l&apos;association.
+      <div className="bu-charts">
+        <ChartCard title="Recettes & dépenses — 6 derniers mois" empty={months.every((m) => m.rec === 0 && m.dep === 0)}>
+          <MonthlyBars data={months.length ? months : [{ label: "", rec: 0, dep: 0 }]} />
+          <div className="bu-legend bu-legend--row">
+            <div className="bu-leg"><span style={{ background: C_REC }} />Recettes</div>
+            <div className="bu-leg"><span style={{ background: C_DEP }} />Dépenses</div>
+          </div>
+        </ChartCard>
+        <ChartCard title="Cotisations par statut" empty={duesByStatus.length === 0}>
+          <Donut data={duesByStatus} />
+        </ChartCard>
+        <ChartCard title="Top catégories de dépenses" empty={depByCat.length === 0}>
+          <HBars data={depByCat} />
+        </ChartCard>
       </div>
     </div>
   );
@@ -854,6 +983,65 @@ const SECTIONS: Section[] = [
 ];
 
 /* ================================================================
+   CENTRE DE NOTIFICATIONS (cloche)
+   ================================================================ */
+type Alert = { key: string; icon: string; text: string; sec: string; sub: string; tone: "warn" | "bad" | "info" };
+function NotificationsBell({ unreadChat, onNav }: { unreadChat: number; onNav: (s: string, sub: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  useEffect(() => {
+    (async () => {
+      if (!supabase) return;
+      const t = new Date(); const iso = (d: Date) => d.toISOString().slice(0, 10);
+      const todayS = iso(t), soonS = iso(new Date(t.getTime() + 7 * 864e5)), soon30 = iso(new Date(t.getTime() + 30 * 864e5));
+      const [rd, rc, rf, rl, re] = await Promise.all([
+        supabase.from("dues").select("status,due_date,paid"),
+        supabase.from("partner_contracts").select("status,end_date"),
+        supabase.from("partner_followups").select("done,due_date"),
+        supabase.from("loans").select("returned,due_date"),
+        supabase.from("org_events").select("event_date"),
+      ]);
+      const out: Alert[] = [];
+      const dues = (rd.data as { status: string | null; due_date: string | null; paid: boolean }[]) || [];
+      const nd = dues.filter((x) => (x.due_date && x.due_date < todayS && x.status !== "Payée" && !x.paid) || (x.status ? ["Impayée", "À renouveler", "En attente"].includes(x.status) : false)).length;
+      if (nd) out.push({ key: "dues", icon: "💶", text: `${nd} cotisation${nd > 1 ? "s" : ""} à traiter`, sec: "adherents", sub: "cotis", tone: "warn" });
+      const contracts = (rc.data as { status: string | null; end_date: string | null }[]) || [];
+      const nc = contracts.filter((x) => x.status === "À renouveler" || (x.end_date ? x.end_date <= soon30 : false)).length;
+      if (nc) out.push({ key: "contracts", icon: "🤝", text: `${nc} contrat${nc > 1 ? "s" : ""} à renouveler`, sec: "partners", sub: "contrats", tone: "warn" });
+      const fu = (rf.data as { done: boolean; due_date: string | null }[]) || [];
+      const nf = fu.filter((x) => !x.done && x.due_date && x.due_date <= soonS).length;
+      if (nf) out.push({ key: "fu", icon: "📌", text: `${nf} suivi${nf > 1 ? "s" : ""} partenaire à faire`, sec: "partners", sub: "suivi", tone: "warn" });
+      const loans = (rl.data as { returned: boolean; due_date: string | null }[]) || [];
+      const nl = loans.filter((x) => !x.returned && x.due_date && x.due_date < todayS).length;
+      if (nl) out.push({ key: "loans", icon: "📦", text: `${nl} retour${nl > 1 ? "s" : ""} de matériel en retard`, sec: "material", sub: "prets", tone: "bad" });
+      const events = (re.data as { event_date: string | null }[]) || [];
+      const ne = events.filter((x) => x.event_date && x.event_date >= todayS && x.event_date <= soonS).length;
+      if (ne) out.push({ key: "events", icon: "📅", text: `${ne} événement${ne > 1 ? "s" : ""} dans les 7 jours`, sec: "events", sub: "cal", tone: "info" });
+      setAlerts(out);
+    })();
+  }, []);
+  const chatAlert = unreadChat > 0;
+  const total = alerts.length + (chatAlert ? 1 : 0);
+  return (
+    <div className="bu-bell">
+      <button className="bu-bell-btn" onClick={() => setOpen((v) => !v)} aria-label="Notifications">🔔{total > 0 && <span className="bu-bell-badge">{total}</span>}</button>
+      {open && <div className="bu-bell-back" onClick={() => setOpen(false)} />}
+      {open && (
+        <div className="bu-bell-panel">
+          <div className="bu-bell-h">Notifications</div>
+          {total === 0 ? <div className="bu-bell-empty">Rien à signaler 🎉</div> : (
+            <div className="bu-bell-list">
+              {chatAlert && <button className="bu-bell-item t-info" onClick={() => { onNav("messagerie", "chat"); setOpen(false); }}><span>💬</span><span>{unreadChat} nouveau{unreadChat > 1 ? "x" : ""} message{unreadChat > 1 ? "s" : ""}</span></button>}
+              {alerts.map((a) => <button key={a.key} className={"bu-bell-item t-" + a.tone} onClick={() => { onNav(a.sec, a.sub); setOpen(false); }}><span>{a.icon}</span><span>{a.text}</span></button>)}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ================================================================
    APPLI BUREAU (shell)
    ================================================================ */
 function BureauApp({ pseudo, meId, onLogout }: { pseudo: string; meId: string; onLogout: () => void }) {
@@ -911,6 +1099,7 @@ function BureauApp({ pseudo, meId, onLogout }: { pseudo: string; meId: string; o
         <div className="bu-head">
           <h1>{section.icon} {section.label}</h1>
           <span className="bu-crumb">{current.label}</span>
+          <NotificationsBell unreadChat={unreadTotal} onNav={go} />
         </div>
         {current.render()}
       </main>
