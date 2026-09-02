@@ -461,12 +461,13 @@ function JournalModule() {
   const [who, setWho] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(false);
+  const [q, setQ] = useState("");
   useEffect(() => {
     (async () => {
       if (!supabase) return;
       setLoading(true);
       const [l, p] = await Promise.all([
-        supabase.from("activity_log").select("*").order("at", { ascending: false }).limit(200),
+        supabase.from("activity_log").select("*").order("at", { ascending: false }).limit(500),
         supabase.from("profiles").select("id,pseudo"),
       ]);
       if (l.error) setErr(true);
@@ -479,13 +480,28 @@ function JournalModule() {
   }, []);
   if (err) return <div className="bu-empty">Module non activé (table « activity_log » absente). Lance le SQL fourni.</div>;
   if (loading) return <p className="bu-muted">Chargement…</p>;
+  const view = q.trim()
+    ? rows.filter((r) => [who[r.actor as string], r.action, r.entity, r.detail].some((v) => String(v ?? "").toLowerCase().includes(q.toLowerCase())))
+    : rows;
+  function exportCSV() {
+    const cell = (v: unknown) => { const s = String(v ?? "").replace(/"/g, '""'); return /[";\n]/.test(s) ? `"${s}"` : s; };
+    const lines = [["Date", "Utilisateur", "Action", "Module", "Détail"].join(";"), ...view.map((r) =>
+      [new Date(r.at as string).toLocaleString("fr-FR"), who[r.actor as string] || "", r.action, r.entity, r.detail].map(cell).join(";"))];
+    const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "journal.csv"; a.click(); URL.revokeObjectURL(url);
+  }
   return (
     <div>
-      <p className="bu-muted" style={{ marginBottom: ".8rem" }}>Historique des actions (ajout, modification, suppression) enregistrées automatiquement.</p>
+      <p className="bu-muted" style={{ marginBottom: ".8rem" }}>Historique des actions (ajout, modification, suppression) enregistrées automatiquement. Journal non modifiable.</p>
+      <div className="bu-toolbar">
+        <input className="bu-search" placeholder="Rechercher (utilisateur, action, module…)" value={q} onChange={(e) => setQ(e.target.value)} />
+        <button className="bu-btn bu-btn--ghost" onClick={exportCSV} disabled={view.length === 0}>Export CSV</button>
+        <span className="bu-count">{view.length} / {rows.length}</span>
+      </div>
       <div className="bu-tablewrap"><table className="bu-table">
-        <thead><tr><th>Date</th><th>Utilisateur</th><th>Action</th><th>Rubrique</th><th>Détail</th></tr></thead>
-        <tbody>{rows.length === 0 ? <tr><td colSpan={5} className="bu-muted">Aucune action enregistrée.</td></tr> :
-          rows.map((r) => (
+        <thead><tr><th>Date</th><th>Utilisateur</th><th>Action</th><th>Module</th><th>Détail</th></tr></thead>
+        <tbody>{view.length === 0 ? <tr><td colSpan={5} className="bu-muted">Aucune action enregistrée.</td></tr> :
+          view.map((r) => (
             <tr key={String(r.id)}>
               <td>{new Date(r.at as string).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })}</td>
               <td>{who[r.actor as string] || "—"}</td>
@@ -773,16 +789,21 @@ const DOC_CATS = ["Statuts", "PV / réunion", "Subvention", "Administratif"];
 const memberFields: Field[] = [
   { key: "last_name", label: "Nom" }, { key: "first_name", label: "Prénom" },
   { key: "email", label: "E-mail" }, { key: "phone", label: "Téléphone" },
+  { key: "join_date", label: "Date d'adhésion", type: "date" },
+  { key: "season", label: "Saison" },
+  { key: "member_role", label: "Rôle" },
   { key: "status", label: "Statut", type: "select", options: ["Actif", "Inactif"] },
-  { key: "notes", label: "Notes", type: "textarea" },
+  { key: "notes", label: "Infos internes", type: "textarea" },
 ];
 const duesFields: Field[] = [
-  { key: "member", label: "Membre" }, { key: "season", label: "Saison" },
+  { key: "member", label: "Membre" }, { key: "season", label: "Saison / année" },
   { key: "amount", label: "Montant", type: "number" },
-  { key: "status", label: "Statut", type: "select", options: ["Payée", "En attente", "À renouveler", "Impayée"] },
+  { key: "status", label: "Statut", type: "select", options: ["Payée", "En attente", "À renouveler", "Non payée", "Impayée"] },
   { key: "paid_date", label: "Payée le", type: "date" },
   { key: "due_date", label: "Échéance", type: "date" },
   { key: "method", label: "Moyen" },
+  { key: "justificatif", label: "Justificatif", type: "file" },
+  { key: "notes", label: "Commentaire", type: "textarea" },
 ];
 const recetteFields: Field[] = [
   { key: "entry_date", label: "Date", type: "date" }, { key: "label", label: "Libellé" },
@@ -806,8 +827,17 @@ const invoiceFields: Field[] = [
   { key: "notes", label: "Notes", type: "textarea" },
 ];
 const budgetFields: Field[] = [
+  { key: "exercice", label: "Exercice" },
   { key: "category", label: "Catégorie" }, { key: "event", label: "Événement (optionnel)" },
   { key: "planned", label: "Prévu", type: "number" }, { key: "notes", label: "Notes", type: "textarea" },
+];
+const subventionFields: Field[] = [
+  { key: "organisme", label: "Organisme" }, { key: "dispositif", label: "Dispositif" },
+  { key: "amount", label: "Montant", type: "number" },
+  { key: "request_date", label: "Date de demande", type: "date" },
+  { key: "due_date", label: "Échéance", type: "date" },
+  { key: "status", label: "Statut", type: "select", options: ["En préparation", "Déposée", "Accordée", "Refusée", "Clôturée"] },
+  { key: "file", label: "Justificatifs", type: "file" }, { key: "notes", label: "Commentaire", type: "textarea" },
 ];
 
 function BudgetModule() {
@@ -859,8 +889,12 @@ function BudgetModule() {
   );
 }
 const docFields = (cat: string): Field[] => [
-  { key: "title", label: "Titre" }, { key: "link", label: "Fichier / lien", type: "file" },
-  { key: "doc_date", label: "Date", type: "date" }, { key: "notes", label: "Notes", type: "textarea" },
+  { key: "title", label: "Nom du document" },
+  ...(cat === "Administratif" ? [{ key: "member", label: "Membre associé" } as Field] : []),
+  ...(cat === "PV / réunion" ? [{ key: "doc_type", label: "Type" } as Field] : []),
+  ...(cat === "Statuts" ? [{ key: "version", label: "Version" } as Field] : []),
+  { key: "link", label: "Fichier / lien", type: "file" },
+  { key: "doc_date", label: "Date", type: "date" }, { key: "notes", label: "Commentaire", type: "textarea" },
   { key: "category", label: "Catégorie", type: "select", options: DOC_CATS },
 ];
 // — Priorité 2 —
@@ -876,8 +910,9 @@ const participantFields: Field[] = [
 ];
 const eventTaskFields: Field[] = [
   { key: "event", label: "Événement" }, { key: "task", label: "Tâche" },
-  { key: "responsible", label: "Responsable" }, { key: "done", label: "Fait", type: "bool" },
-  { key: "notes", label: "Notes", type: "textarea" },
+  { key: "responsible", label: "Responsable" }, { key: "due_date", label: "Échéance", type: "date" },
+  { key: "material", label: "Matériel nécessaire" }, { key: "done", label: "Fait", type: "bool" },
+  { key: "bilan", label: "Bilan", type: "textarea" }, { key: "notes", label: "Notes", type: "textarea" },
 ];
 const contractFields: Field[] = [
   { key: "partner", label: "Partenaire" }, { key: "start_date", label: "Début", type: "date" }, { key: "end_date", label: "Fin", type: "date" },
@@ -887,7 +922,8 @@ const contractFields: Field[] = [
 ];
 const followupFields: Field[] = [
   { key: "partner", label: "Partenaire" }, { key: "action", label: "Action / contrepartie" },
-  { key: "due_date", label: "Échéance", type: "date" }, { key: "done", label: "Fait", type: "bool" }, { key: "notes", label: "Notes", type: "textarea" },
+  { key: "responsible", label: "Responsable" },
+  { key: "due_date", label: "Échéance", type: "date" }, { key: "done", label: "Fait", type: "bool" }, { key: "notes", label: "Commentaire", type: "textarea" },
 ];
 const equipmentFields: Field[] = [
   { key: "name", label: "Matériel" }, { key: "inv_number", label: "N° inventaire" }, { key: "category", label: "Catégorie" },
@@ -915,8 +951,9 @@ const staffFields: Field[] = [
 ];
 const competitionFields: Field[] = [
   { key: "name", label: "Compétition" }, { key: "team", label: "Équipe" }, { key: "game", label: "Jeu" },
-  { key: "comp_date", label: "Date", type: "date" }, { key: "opponent", label: "Adversaire" },
-  { key: "result", label: "Résultat" }, { key: "ranking", label: "Classement" }, { key: "notes", label: "Notes", type: "textarea" },
+  { key: "comp_date", label: "Date", type: "date" }, { key: "comp_time", label: "Heure" }, { key: "opponent", label: "Adversaire" },
+  { key: "result", label: "Résultat" }, { key: "ranking", label: "Classement" },
+  { key: "file", label: "Lien / document", type: "file" }, { key: "notes", label: "Notes", type: "textarea" },
 ];
 
 const BUREAU_ROLES = ["", "Président", "Trésorier", "Secrétaire", "Responsable esport", "Responsable événements", "Bénévole"];
@@ -951,12 +988,16 @@ const SECTIONS: Section[] = [
     { key: "orga", label: "Organisation", render: () => <Crud table="event_tasks" fields={eventTaskFields} /> },
   ] },
   { key: "docs", icon: "📄", label: "Documents", subs: DOC_CATS.map((c) => ({
-    key: c, label: c, render: () => <Crud table="documents" fields={docFields(c)} filter={(r) => r.category === c} defaults={{ category: c }} orderBy="doc_date" />,
+    key: c, label: c, render: () => c === "Subvention"
+      ? <Crud table="subventions" fields={subventionFields} orderBy="due_date" desc={false} />
+      : <Crud table="documents" fields={docFields(c)} filter={(r) => r.category === c} defaults={{ category: c }} orderBy="doc_date" />,
   })) },
   { key: "partners", icon: "🤝", label: "Partenaires", subs: [
     { key: "contacts", label: "Contacts", render: () => <Crud table="partner_contacts" fields={[
-      { key: "name", label: "Partenaire" }, { key: "contact_name", label: "Contact" },
+      { key: "name", label: "Entreprise" }, { key: "contact_name", label: "Nom du contact" },
+      { key: "role_contact", label: "Fonction" },
       { key: "email", label: "E-mail" }, { key: "phone", label: "Téléphone" },
+      { key: "address", label: "Adresse" },
       { key: "status", label: "Statut", type: "select", options: ["Prospect", "Actif", "Terminé"] },
       { key: "notes", label: "Notes", type: "textarea" },
     ]} orderBy="name" desc={false} /> },

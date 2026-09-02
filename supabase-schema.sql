@@ -497,3 +497,44 @@ drop policy if exists "chat_reads_own" on public.chat_reads;
 create policy "chat_reads_own" on public.chat_reads
   for all to authenticated
   using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+-- ============================================================
+--  BUREAU — CONFORMITÉ CHAMPS (fiches sous-rubriques) 02/09/2026
+-- ============================================================
+-- Adhérents / Liste des membres
+alter table public.members add column if not exists join_date date;
+alter table public.members add column if not exists season text;
+alter table public.members add column if not exists member_role text;
+-- Adhérents / Cotisations
+alter table public.dues add column if not exists justificatif text;
+alter table public.dues add column if not exists notes text;
+-- Documents (membre associé / type / version)
+alter table public.documents add column if not exists member text;
+alter table public.documents add column if not exists doc_type text;
+alter table public.documents add column if not exists version text;
+-- Finance / Budget
+alter table public.budget_lines add column if not exists exercice text;
+-- Événements / Organisation
+alter table public.event_tasks add column if not exists due_date date;
+alter table public.event_tasks add column if not exists material text;
+alter table public.event_tasks add column if not exists bilan text;
+-- Partenaires / Contacts
+alter table public.partner_contacts add column if not exists role_contact text;
+alter table public.partner_contacts add column if not exists address text;
+-- Partenaires / Suivi
+alter table public.partner_followups add column if not exists responsible text;
+-- Équipes / Compétitions
+alter table public.bu_competitions add column if not exists comp_time text;
+alter table public.bu_competitions add column if not exists file text;
+
+-- Documents / Subventions : table dédiée
+create table if not exists public.subventions (
+  id uuid primary key default gen_random_uuid(),
+  organisme text, dispositif text, amount numeric,
+  request_date date, due_date date, status text, file text, notes text,
+  created_at timestamptz default now()
+);
+alter table public.subventions enable row level security;
+drop policy if exists "subventions_bureau_all" on public.subventions;
+create policy "subventions_bureau_all" on public.subventions
+  for all to authenticated using (public.is_bureau()) with check (public.is_bureau());
