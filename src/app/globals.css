@@ -1367,6 +1367,23 @@ main section,.finale{scroll-margin-top:90px}
 .bu-msgr-input{display:flex;gap:.5rem;padding:.7rem;border-top:1px solid var(--line-2)}
 .bu-msgr-input input{flex:1;min-width:0;padding:.6rem .8rem;border-radius:10px;border:1px solid var(--line-2);background:var(--surface-2);color:var(--text);font:inherit;font-size:.9rem}
 .bu-msgr-input input:focus{outline:none;border-color:var(--lavender)}
+.bu-msgr-item{display:flex;align-items:center;gap:.4rem;justify-content:space-between}
+.bu-msgr-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bu-msgr-badge{flex:none;background:#e23b5a;color:#fff;font-size:.7rem;font-weight:700;min-width:18px;height:18px;padding:0 .35rem;border-radius:999px;display:inline-grid;place-items:center;line-height:1}
+.bu-msgr-item.on .bu-msgr-badge{background:#fff;color:var(--violet)}
+.bu-navbadge{margin-left:auto;background:#e23b5a;color:#fff;font-size:.7rem;font-weight:700;min-width:18px;height:18px;padding:0 .35rem;border-radius:999px;display:inline-grid;place-items:center;line-height:1}
+.bu-msg-file{display:inline-flex;align-items:center;gap:.3rem;margin-top:.15rem;background:rgba(255,255,255,.08);border:1px solid var(--line-2);color:inherit;padding:.3rem .55rem;border-radius:9px;cursor:pointer;font:inherit;font-size:.82rem}
+.bu-msg-file:hover{border-color:var(--lavender)}
+.bu-msg.mine .bu-msg-file{background:rgba(255,255,255,.18);border-color:transparent}
+.bu-msgr-compose{border-top:1px solid var(--line-2)}
+.bu-msgr-pending{display:flex;align-items:center;gap:.5rem;padding:.5rem .8rem 0;font-size:.82rem;color:var(--text)}
+.bu-msgr-pending button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:.8rem}
+.bu-msgr-input{display:flex;gap:.5rem;padding:.7rem;align-items:center}
+.bu-msgr-clip{flex:none;width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--line-2);background:var(--surface-2);border-radius:10px;cursor:pointer;font-size:1.05rem}
+.bu-msgr-clip:hover{border-color:var(--lavender)}
+.bu-file{display:flex;gap:.35rem;align-items:center}
+.bu-file input[type=text]{flex:1;min-width:0}
+.bu-filebtn{cursor:pointer;display:inline-grid;place-items:center}
 @media(max-width:800px){
   .bu-msgr{grid-template-columns:1fr;height:auto}
   .bu-msgr-side{max-height:220px}

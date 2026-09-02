@@ -463,3 +463,37 @@ exception when others then null; end $$;
 insert into public.chat_channels(name, description)
 select 'général', 'Canal général du bureau'
 where not exists (select 1 from public.chat_channels);
+
+-- ============================================================
+--  BUREAU — PIÈCES JOINTES (Storage) + MESSAGES NON LUS
+-- ============================================================
+
+-- Bucket privé pour tous les fichiers du bureau (justificatifs, factures, docs, pièces jointes chat)
+insert into storage.buckets (id, name, public) values ('bureau', 'bureau', false)
+on conflict (id) do nothing;
+
+-- Accès au bucket réservé aux membres du bureau (lecture via URL signée, écriture, remplacement, suppression)
+drop policy if exists "bureau_storage_all" on storage.objects;
+create policy "bureau_storage_all" on storage.objects
+  for all to authenticated
+  using (bucket_id = 'bureau' and public.is_bureau())
+  with check (bucket_id = 'bureau' and public.is_bureau());
+
+-- Pièces jointes des messages
+alter table public.chat_messages add column if not exists attachment_path text;
+alter table public.chat_messages add column if not exists attachment_name text;
+alter table public.chat_messages alter column body drop not null;
+
+-- Suivi de lecture (messages non lus) : une ligne par (utilisateur, conversation)
+create table if not exists public.chat_reads (
+  user_id uuid not null default auth.uid(),
+  scope text not null,               -- 'channel' | 'dm'
+  ref_id uuid not null,
+  last_read_at timestamptz not null default now(),
+  primary key (user_id, scope, ref_id)
+);
+alter table public.chat_reads enable row level security;
+drop policy if exists "chat_reads_own" on public.chat_reads;
+create policy "chat_reads_own" on public.chat_reads
+  for all to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());

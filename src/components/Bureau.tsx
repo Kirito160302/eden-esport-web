@@ -8,7 +8,49 @@ const supabase = getSupabase();
 const eur = (n: number) => (Number(n) || 0).toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
 const fmtD = (d?: string) => (d ? new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }) : "");
 
-type Field = { key: string; label: string; type?: "text" | "number" | "date" | "select" | "bool" | "textarea"; options?: string[] };
+type Field = { key: string; label: string; type?: "text" | "number" | "date" | "select" | "bool" | "textarea" | "file"; options?: string[] };
+
+/* ---- Stockage de fichiers (bucket privé « bureau ») ---- */
+async function uploadFile(file: File, folder: string): Promise<{ path: string; name: string } | null> {
+  if (!supabase) return null;
+  const safe = file.name.replace(/[^\w.\-]+/g, "_");
+  const path = `${folder}/${crypto.randomUUID()}-${safe}`;
+  const { error } = await supabase.storage.from("bureau").upload(path, file, { upsert: false });
+  if (error) { alert("Envoi du fichier impossible : " + error.message); return null; }
+  return { path, name: file.name };
+}
+async function openFile(pathOrUrl: string) {
+  if (!supabase || !pathOrUrl) return;
+  if (/^https?:\/\//i.test(pathOrUrl)) { window.open(pathOrUrl, "_blank", "noopener"); return; }
+  const { data, error } = await supabase.storage.from("bureau").createSignedUrl(pathOrUrl, 120);
+  if (error || !data) { alert("Fichier introuvable."); return; }
+  window.open(data.signedUrl, "_blank", "noopener");
+}
+function fileLabel(pathOrUrl: string): string {
+  if (/^https?:\/\//i.test(pathOrUrl)) return "lien";
+  const base = pathOrUrl.split("/").pop() || pathOrUrl;
+  return base.replace(/^[0-9a-f-]{36}-/i, "");
+}
+
+/* ---- Compteur de messages non lus (partagé menu + messagerie) ---- */
+async function fetchUnreadMap(meId: string): Promise<Record<string, number>> {
+  if (!supabase || !meId) return {};
+  const [rd, ms] = await Promise.all([
+    supabase.from("chat_reads").select("scope,ref_id,last_read_at").eq("user_id", meId),
+    supabase.from("chat_messages").select("channel_id,dm_id,sender,created_at").order("created_at", { ascending: false }).limit(4000),
+  ]);
+  if (rd.error || ms.error) return {};
+  const last: Record<string, number> = {};
+  for (const r of (rd.data as { scope: string; ref_id: string; last_read_at: string }[]) || []) last[`${r.scope}:${r.ref_id}`] = new Date(r.last_read_at).getTime();
+  const cnt: Record<string, number> = {};
+  for (const m of (ms.data as { channel_id: string | null; dm_id: string | null; sender: string; created_at: string }[]) || []) {
+    if (m.sender === meId) continue;
+    const key = m.channel_id ? `channel:${m.channel_id}` : m.dm_id ? `dm:${m.dm_id}` : "";
+    if (!key) continue;
+    if (new Date(m.created_at).getTime() > (last[key] || 0)) cnt[key] = (cnt[key] || 0) + 1;
+  }
+  return cnt;
+}
 
 /* ================================================================
    MOTEUR GÉNÉRIQUE — liste + ajout + suppression d'enregistrements
@@ -127,6 +169,14 @@ function Crud({ table, fields, defaults = {}, filter, orderBy = "created_at", de
                   <option value="">—</option>
                   {(fl.options || []).map((o) => <option key={o} value={o}>{o}</option>)}
                 </select>
+              ) : fl.type === "file" ? (
+                <div className="bu-file">
+                  <input type="text" placeholder="Lien ou fichier…" value={(f[fl.key] as string) ?? ""} onChange={(e) => setV(fl.key, e.target.value)} />
+                  <label className="bu-btn bu-btn--ghost bu-btn--sm bu-filebtn" title="Joindre un fichier">📎
+                    <input type="file" hidden onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; const r = await uploadFile(file, table); if (r) setV(fl.key, r.path); e.target.value = ""; }} />
+                  </label>
+                  {f[fl.key] ? <button type="button" className="bu-btn bu-btn--ghost bu-btn--sm" onClick={() => openFile(f[fl.key] as string)}>Voir</button> : null}
+                </div>
               ) : (
                 <input type={fl.type === "number" ? "number" : fl.type === "date" ? "date" : "text"}
                   value={(f[fl.key] as string) ?? ""} onChange={(e) => setV(fl.key, e.target.value)} />
@@ -151,6 +201,8 @@ function Crud({ table, fields, defaults = {}, filter, orderBy = "created_at", de
                   <td key={fl.key}>
                     {fl.type === "bool" ? (
                       <button className={"bu-chip " + (r[fl.key] ? "ok" : "no")} onClick={() => toggleBool(r, fl.key)}>{r[fl.key] ? "Oui" : "Non"}</button>
+                    ) : fl.type === "file" ? (
+                      r[fl.key] ? <button className="bu-edit" onClick={() => openFile(r[fl.key] as string)} title={fileLabel(r[fl.key] as string)}>📎 Voir</button> : "—"
                     ) : fl.type === "number" ? (
                       /amount|planned|montant|prix/.test(fl.key) ? eur(r[fl.key] as number) : (r[fl.key] as string) ?? ""
                     ) : fl.type === "date" ? fmtD(r[fl.key] as string) : ((r[fl.key] as string) ?? "")}
@@ -327,7 +379,7 @@ function Placeholder({ label }: { label: string }) {
    ================================================================ */
 type ChatChannel = { id: string; name: string; description?: string | null };
 type ChatDm = { id: string; user_a: string; user_b: string };
-type ChatMsg = { id: string; sender: string; body: string; created_at: string; channel_id?: string | null; dm_id?: string | null };
+type ChatMsg = { id: string; sender: string; body: string; created_at: string; channel_id?: string | null; dm_id?: string | null; attachment_path?: string | null; attachment_name?: string | null };
 type Convo = { kind: "channel" | "dm"; id: string; label: string; other?: string };
 
 function MessengerModule() {
@@ -345,7 +397,22 @@ function MessengerModule() {
   const [newChan, setNewChan] = useState(false);
   const [chanName, setChanName] = useState("");
   const [showStart, setShowStart] = useState(false);
+  const [unread, setUnread] = useState<Record<string, number>>({});
+  const [pending, setPending] = useState<{ path: string; name: string } | null>(null);
+  const [uploading, setUploading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const activeRef = useRef<Convo | null>(null);
+  useEffect(() => { activeRef.current = active; }, [active]);
+
+  const markRead = useCallback(async (c: Convo) => {
+    const key = `${c.kind}:${c.id}`;
+    setUnread((p) => (p[key] ? { ...p, [key]: 0 } : p));
+    if (!supabase || !meId) return;
+    try {
+      await supabase.from("chat_reads").upsert({ user_id: meId, scope: c.kind, ref_id: c.id, last_read_at: new Date().toISOString() }, { onConflict: "user_id,scope,ref_id" });
+      window.dispatchEvent(new Event("bu-unread"));
+    } catch { /* table optionnelle */ }
+  }, [meId]);
 
   const boot = useCallback(async () => {
     if (!supabase) return;
@@ -368,26 +435,47 @@ function MessengerModule() {
     setWho(map);
     setMembers(profs.filter((p) => p.is_bureau && p.id !== uid).map((p) => ({ id: p.id, pseudo: p.pseudo || "—" })));
     setDms((dm.data as ChatDm[]) || []);
+    setUnread(await fetchUnreadMap(uid));
     setActive((a) => a || (chs[0] ? { kind: "channel", id: chs[0].id, label: "# " + chs[0].name } : null));
     setLoading(false);
   }, []);
   useEffect(() => { boot(); }, [boot]);
 
+  // suivi global des non-lus (conversations non ouvertes)
+  useEffect(() => {
+    if (!supabase || !meId) return;
+    const rt = supabase.channel("chat-unread:" + meId)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, (payload) => {
+        const m = payload.new as ChatMsg;
+        if (m.sender === meId) return;
+        const key = m.channel_id ? `channel:${m.channel_id}` : m.dm_id ? `dm:${m.dm_id}` : "";
+        if (!key) return;
+        const a = activeRef.current;
+        if (a && `${a.kind}:${a.id}` === key) return; // conversation ouverte → déjà lue
+        setUnread((p) => ({ ...p, [key]: (p[key] || 0) + 1 }));
+        window.dispatchEvent(new Event("bu-unread"));
+      })
+      .subscribe();
+    return () => { supabase!.removeChannel(rt); };
+  }, [meId]);
+
   // chargement des messages + abonnement temps réel à la conversation active
   useEffect(() => {
     if (!supabase || !active) return;
     let cancelled = false;
-    const col = active.kind === "channel" ? "channel_id" : "dm_id";
+    const conv = active;
+    const col = conv.kind === "channel" ? "channel_id" : "dm_id";
     (async () => {
-      const res = await supabase!.from("chat_messages").select("*").eq(col, active.id).order("created_at").limit(500);
-      if (!cancelled) setMsgs((res.data as ChatMsg[]) || []);
+      const res = await supabase!.from("chat_messages").select("*").eq(col, conv.id).order("created_at").limit(500);
+      if (!cancelled) { setMsgs((res.data as ChatMsg[]) || []); markRead(conv); }
     })();
     const rt = supabase
-      .channel("chat:" + active.kind + ":" + active.id)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages", filter: `${col}=eq.${active.id}` },
+      .channel("chat:" + conv.kind + ":" + conv.id)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages", filter: `${col}=eq.${conv.id}` },
         (payload) => {
           const m = payload.new as ChatMsg;
           setMsgs((p) => (p.some((x) => x.id === m.id) ? p : [...p, m]));
+          if (m.sender !== meId) markRead(conv);
         })
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "chat_messages" },
         (payload) => {
@@ -396,20 +484,31 @@ function MessengerModule() {
         })
       .subscribe();
     return () => { cancelled = true; supabase!.removeChannel(rt); };
-  }, [active]);
+  }, [active, markRead, meId]);
 
   useEffect(() => { const el = scrollRef.current; if (el) el.scrollTop = el.scrollHeight; }, [msgs, active]);
 
+  async function onAttach(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploading(true);
+    const r = await uploadFile(file, "chat");
+    setUploading(false);
+    if (r) setPending(r);
+  }
+
   async function send(e: React.FormEvent) {
     e.preventDefault();
-    if (!supabase || !active || !text.trim()) return;
+    if (!supabase || !active || (!text.trim() && !pending)) return;
     setSending(true);
-    const body = text.trim();
-    const row: Record<string, string> = active.kind === "channel" ? { channel_id: active.id, body } : { dm_id: active.id, body };
+    const row: Record<string, string | null> = active.kind === "channel" ? { channel_id: active.id } : { dm_id: active.id };
+    row.body = text.trim();
+    if (pending) { row.attachment_path = pending.path; row.attachment_name = pending.name; }
     const { data, error } = await supabase.from("chat_messages").insert(row).select().single();
     setSending(false);
     if (error) { alert("Envoi impossible : " + error.message); return; }
-    setText("");
+    setText(""); setPending(null);
     if (data) { const m = data as ChatMsg; setMsgs((p) => (p.some((x) => x.id === m.id) ? p : [...p, m])); }
   }
 
@@ -460,10 +559,16 @@ function MessengerModule() {
         )}
         <div className="bu-msgr-list">
           {channels.length === 0 ? <span className="bu-muted bu-msgr-none">Aucun canal.</span> :
-            channels.map((c) => (
-              <button key={c.id} className={"bu-msgr-item" + (active?.kind === "channel" && active.id === c.id ? " on" : "")}
-                onClick={() => setActive({ kind: "channel", id: c.id, label: "# " + c.name })}># {c.name}</button>
-            ))}
+            channels.map((c) => {
+              const u = unread[`channel:${c.id}`] || 0;
+              return (
+                <button key={c.id} className={"bu-msgr-item" + (active?.kind === "channel" && active.id === c.id ? " on" : "")}
+                  onClick={() => setActive({ kind: "channel", id: c.id, label: "# " + c.name })}>
+                  <span className="bu-msgr-name"># {c.name}</span>
+                  {u > 0 && <span className="bu-msgr-badge">{u}</span>}
+                </button>
+              );
+            })}
         </div>
 
         <div className="bu-msgr-h"><span>Messages directs</span>
@@ -479,10 +584,16 @@ function MessengerModule() {
         )}
         <div className="bu-msgr-list">
           {dmList.length === 0 ? <span className="bu-muted bu-msgr-none">Aucune conversation.</span> :
-            dmList.map((d) => (
-              <button key={d.id} className={"bu-msgr-item" + (active?.kind === "dm" && active.id === d.id ? " on" : "")}
-                onClick={() => setActive({ kind: "dm", id: d.id, label: who[d.other] || "—", other: d.other })}>💬 {who[d.other] || "—"}</button>
-            ))}
+            dmList.map((d) => {
+              const u = unread[`dm:${d.id}`] || 0;
+              return (
+                <button key={d.id} className={"bu-msgr-item" + (active?.kind === "dm" && active.id === d.id ? " on" : "")}
+                  onClick={() => setActive({ kind: "dm", id: d.id, label: who[d.other] || "—", other: d.other })}>
+                  <span className="bu-msgr-name">💬 {who[d.other] || "—"}</span>
+                  {u > 0 && <span className="bu-msgr-badge">{u}</span>}
+                </button>
+              );
+            })}
         </div>
       </aside>
 
@@ -497,7 +608,10 @@ function MessengerModule() {
                   <div key={m.id} className={"bu-msg" + (mine ? " mine" : "")}>
                     {!mine && <div className="bu-msg-who">{who[m.sender] || "—"}</div>}
                     <div className="bu-msg-bubble">
-                      <span>{m.body}</span>
+                      {m.body ? <span>{m.body}</span> : null}
+                      {m.attachment_path ? (
+                        <button className="bu-msg-file" onClick={() => openFile(m.attachment_path as string)}>📎 {m.attachment_name || fileLabel(m.attachment_path)}</button>
+                      ) : null}
                       {mine && <button className="bu-msg-del" onClick={() => delMsg(m.id)} aria-label="Supprimer">✕</button>}
                     </div>
                     <div className="bu-msg-time">{new Date(m.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</div>
@@ -505,10 +619,19 @@ function MessengerModule() {
                 );
               })}
         </div>
-        <form className="bu-msgr-input" onSubmit={send}>
-          <input placeholder={active ? "Écris un message…" : "Sélectionne une conversation"} value={text} onChange={(e) => setText(e.target.value)} disabled={!active} />
-          <button className="bu-btn" type="submit" disabled={!active || sending || !text.trim()}>Envoyer</button>
-        </form>
+        <div className="bu-msgr-compose">
+          {pending && (
+            <div className="bu-msgr-pending">📎 {pending.name}<button type="button" onClick={() => setPending(null)} aria-label="Retirer">✕</button></div>
+          )}
+          {uploading && <div className="bu-msgr-pending bu-muted">Envoi du fichier…</div>}
+          <form className="bu-msgr-input" onSubmit={send}>
+            <label className="bu-msgr-clip" title="Joindre un fichier">📎
+              <input type="file" hidden onChange={onAttach} disabled={!active || uploading} />
+            </label>
+            <input placeholder={active ? "Écris un message…" : "Sélectionne une conversation"} value={text} onChange={(e) => setText(e.target.value)} disabled={!active} />
+            <button className="bu-btn" type="submit" disabled={!active || sending || uploading || (!text.trim() && !pending)}>Envoyer</button>
+          </form>
+        </div>
       </section>
     </div>
   );
@@ -536,21 +659,21 @@ const recetteFields: Field[] = [
   { key: "entry_date", label: "Date", type: "date" }, { key: "label", label: "Libellé" },
   { key: "category", label: "Catégorie" }, { key: "counterparty", label: "Origine" },
   { key: "amount", label: "Montant", type: "number" },
-  { key: "justificatif", label: "Justificatif (lien)" }, { key: "linked", label: "Lié à" },
+  { key: "justificatif", label: "Justificatif", type: "file" }, { key: "linked", label: "Lié à" },
   { key: "notes", label: "Commentaire", type: "textarea" },
 ];
 const depenseFields: Field[] = [
   { key: "entry_date", label: "Date", type: "date" }, { key: "label", label: "Libellé" },
   { key: "category", label: "Catégorie" }, { key: "counterparty", label: "Fournisseur / bénéficiaire" },
   { key: "amount", label: "Montant", type: "number" },
-  { key: "justificatif", label: "Justificatif (lien)" }, { key: "linked", label: "Lié à" },
+  { key: "justificatif", label: "Justificatif", type: "file" }, { key: "linked", label: "Lié à" },
   { key: "notes", label: "Commentaire", type: "textarea" },
 ];
 const invoiceFields: Field[] = [
   { key: "number", label: "N°" }, { key: "inv_date", label: "Date", type: "date" },
   { key: "party", label: "Émetteur / destinataire" }, { key: "amount", label: "Montant", type: "number" },
   { key: "status", label: "Statut", type: "select", options: ["À payer", "Payée", "En retard"] },
-  { key: "due_date", label: "Échéance", type: "date" }, { key: "file", label: "Fichier (lien)" },
+  { key: "due_date", label: "Échéance", type: "date" }, { key: "file", label: "Fichier", type: "file" },
   { key: "notes", label: "Notes", type: "textarea" },
 ];
 const budgetFields: Field[] = [
@@ -607,7 +730,7 @@ function BudgetModule() {
   );
 }
 const docFields = (cat: string): Field[] => [
-  { key: "title", label: "Titre" }, { key: "link", label: "Lien" },
+  { key: "title", label: "Titre" }, { key: "link", label: "Fichier / lien", type: "file" },
   { key: "doc_date", label: "Date", type: "date" }, { key: "notes", label: "Notes", type: "textarea" },
   { key: "category", label: "Catégorie", type: "select", options: DOC_CATS },
 ];
@@ -631,7 +754,7 @@ const contractFields: Field[] = [
   { key: "partner", label: "Partenaire" }, { key: "start_date", label: "Début", type: "date" }, { key: "end_date", label: "Fin", type: "date" },
   { key: "amount", label: "Montant / valeur", type: "number" },
   { key: "status", label: "Statut", type: "select", options: ["En cours", "À renouveler", "Terminé"] },
-  { key: "file", label: "Fichier (lien)" }, { key: "counterparts", label: "Contreparties", type: "textarea" }, { key: "notes", label: "Notes", type: "textarea" },
+  { key: "file", label: "Fichier", type: "file" }, { key: "counterparts", label: "Contreparties", type: "textarea" }, { key: "notes", label: "Notes", type: "textarea" },
 ];
 const followupFields: Field[] = [
   { key: "partner", label: "Partenaire" }, { key: "action", label: "Action / contrepartie" },
@@ -642,7 +765,7 @@ const equipmentFields: Field[] = [
   { key: "quantity", label: "Qté", type: "number" },
   { key: "status", label: "État", type: "select", options: ["Disponible", "Prêté", "Maintenance", "Hors service"] },
   { key: "location", label: "Emplacement" }, { key: "responsible", label: "Responsable" },
-  { key: "purchase_date", label: "Achat", type: "date" }, { key: "invoice", label: "Facture (lien)" }, { key: "notes", label: "Notes", type: "textarea" },
+  { key: "purchase_date", label: "Achat", type: "date" }, { key: "invoice", label: "Facture", type: "file" }, { key: "notes", label: "Notes", type: "textarea" },
 ];
 const loanFields: Field[] = [
   { key: "item", label: "Matériel" }, { key: "borrower", label: "Emprunteur" },
@@ -733,12 +856,27 @@ const SECTIONS: Section[] = [
 /* ================================================================
    APPLI BUREAU (shell)
    ================================================================ */
-function BureauApp({ pseudo, onLogout }: { pseudo: string; onLogout: () => void }) {
+function BureauApp({ pseudo, meId, onLogout }: { pseudo: string; meId: string; onLogout: () => void }) {
   const [sec, setSec] = useState("dash");
   const [sub, setSub] = useState("d");
   const [navOpen, setNavOpen] = useState(false);
+  const [unreadTotal, setUnreadTotal] = useState(0);
   const section = SECTIONS.find((s) => s.key === sec) || SECTIONS[0];
   const current = section.subs.find((x) => x.key === sub) || section.subs[0];
+
+  // total de messages non lus pour la pastille du menu
+  useEffect(() => {
+    if (!supabase || !meId) return;
+    let live = true;
+    const refresh = async () => { const m = await fetchUnreadMap(meId); if (live) setUnreadTotal(Object.values(m).reduce((s, n) => s + n, 0)); };
+    refresh();
+    const onEvt = () => refresh();
+    window.addEventListener("bu-unread", onEvt);
+    const rt = supabase.channel("bu-unread-nav:" + meId)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, () => refresh())
+      .subscribe();
+    return () => { live = false; window.removeEventListener("bu-unread", onEvt); supabase!.removeChannel(rt); };
+  }, [meId]);
 
   const go = (sKey: string, subKey: string) => { setSec(sKey); setSub(subKey); setNavOpen(false); };
 
@@ -752,6 +890,7 @@ function BureauApp({ pseudo, onLogout }: { pseudo: string; onLogout: () => void 
             <div key={s.key} className="bu-navgroup">
               <button className={"bu-navsec" + (s.key === sec ? " on" : "")} onClick={() => go(s.key, s.subs[0].key)}>
                 <span>{s.icon}</span> {s.label}
+                {s.key === "messagerie" && unreadTotal > 0 && <span className="bu-navbadge">{unreadTotal}</span>}
               </button>
               {s.key === sec && (
                 <div className="bu-navsubs">
@@ -837,5 +976,5 @@ export default function Bureau() {
       </div>
     );
   }
-  return <BureauApp pseudo={profile.pseudo} onLogout={logout} />;
+  return <BureauApp pseudo={profile.pseudo} meId={profile.id} onLogout={logout} />;
 }
