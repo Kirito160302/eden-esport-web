@@ -410,9 +410,9 @@ main section,.finale{scroll-margin-top:90px}
 .footer-bottom .sig{font-family:var(--f-display);font-size:.8rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase}
 .footer-bottom .sig .l2{color:var(--muted)}
 .footer-bottom .legal{display:flex;gap:1.3rem;flex-wrap:wrap}
-.footer-bottom .legal a{color:var(--muted-2);font-size:.78rem}
+.footer-bottom .legal a{color:var(--muted);font-size:.78rem}
 .footer-bottom .legal a:hover{color:var(--lavender)}
-.copy{color:var(--muted-2);font-size:.78rem}
+.copy{color:var(--muted);font-size:.78rem}
 
 /* =====================================================================
    REVEAL ANIMATIONS

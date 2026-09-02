@@ -82,8 +82,8 @@ export default function Header() {
     <>
       <header className={"header" + (scrolled ? " scrolled" : "")}>
         <div className="wrap">
-          <Link href="/" className="brand" aria-label="Eden Esport — accueil">
-            <img src="/symbol.png" alt="" width={38} aria-hidden="true" />
+          <Link href="/" className="brand" title="Eden Esport — accueil">
+            <img src="/symbol.png" alt="" width={38} height={38} aria-hidden="true" />
             <span className="wm">EDEN<small>E-SPORT</small></span>
           </Link>
 
@@ -121,7 +121,7 @@ export default function Header() {
         </div>
       </header>
 
-      <div className={"mobile-menu" + (open ? " open" : "")} aria-hidden={!open}>
+      <div className={"mobile-menu" + (open ? " open" : "")} aria-hidden={!open} inert={!open ? true : undefined}>
         {NAV.map((item, i) => (
           <div className="mm-item" key={item.href + item.label}>
             <div className="mm-row">
