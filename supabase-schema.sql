@@ -580,3 +580,35 @@ begin
     execute format('create policy "%s_role" on public.%I for all to authenticated using (public.bu_can(%L)) with check (public.bu_can(%L))', rec.tbl, rec.tbl, rec.dom, rec.dom);
   end loop;
 end $$;
+
+-- ============================================================
+--  ESPACE ÉQUIPE — COMPOS / DRAFT (compositions + pools joueurs) 02/09/2026
+-- ============================================================
+create table if not exists public.team_comps (
+  id uuid primary key default gen_random_uuid(),
+  team text, game text, name text, opponent text, map text, side text,
+  picks jsonb default '[]'::jsonb, bans jsonb default '[]'::jsonb, notes text,
+  author uuid default auth.uid(), created_at timestamptz default now()
+);
+alter table public.team_comps enable row level security;
+drop policy if exists "team_comps_read"   on public.team_comps;
+drop policy if exists "team_comps_write"  on public.team_comps;
+drop policy if exists "team_comps_modify" on public.team_comps;
+drop policy if exists "team_comps_del"    on public.team_comps;
+create policy "team_comps_read"   on public.team_comps for select to authenticated using (true);
+create policy "team_comps_write"  on public.team_comps for insert to authenticated with check (author = auth.uid());
+create policy "team_comps_modify" on public.team_comps for update to authenticated using (public.is_staff() or author = auth.uid()) with check (public.is_staff() or author = auth.uid());
+create policy "team_comps_del"    on public.team_comps for delete to authenticated using (public.is_staff() or author = auth.uid());
+
+create table if not exists public.player_pool (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid default auth.uid(),
+  game text, champ_key text, champ_name text, icon text, role text,
+  created_at timestamptz default now(),
+  unique (user_id, game, champ_key)
+);
+alter table public.player_pool enable row level security;
+drop policy if exists "player_pool_read" on public.player_pool;
+drop policy if exists "player_pool_own"  on public.player_pool;
+create policy "player_pool_read" on public.player_pool for select to authenticated using (true);
+create policy "player_pool_own"  on public.player_pool for all to authenticated using (user_id = auth.uid() or public.is_staff()) with check (user_id = auth.uid() or public.is_staff());

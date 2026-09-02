@@ -828,10 +828,276 @@ function RosterView({ members, me, onSaved }: { members: Record<string, Profile>
 }
 
 /* ------------------------------------------------------------------ */
+/*  COMPOS / DRAFT — catalogues champions (LoL) & agents (Valorant)    */
+/* ------------------------------------------------------------------ */
+type CatItem = { key: string; name: string; icon: string; role?: string };
+const CATALOG_CACHE: Record<string, CatItem[]> = {};
+async function loadCatalog(game: string): Promise<CatItem[]> {
+  if (CATALOG_CACHE[game]) return CATALOG_CACHE[game];
+  try {
+    if (game === "lol") {
+      const vers = await fetch("https://ddragon.leagueoflegends.com/api/versions.json").then((r) => r.json());
+      const ver = vers[0];
+      const d = await fetch(`https://ddragon.leagueoflegends.com/cdn/${ver}/data/fr_FR/champion.json`).then((r) => r.json());
+      const items = Object.values(d.data as Record<string, { id: string; name: string; image: { full: string } }>)
+        .map((c) => ({ key: c.id, name: c.name, icon: `https://ddragon.leagueoflegends.com/cdn/${ver}/img/champion/${c.image.full}` }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      CATALOG_CACHE[game] = items; return items;
+    }
+    if (game === "valorant") {
+      const d = await fetch("https://valorant-api.com/v1/agents?isPlayableCharacter=true&language=fr-FR").then((r) => r.json());
+      const items = (d.data as { uuid: string; displayName: string; displayIcon: string; role?: { displayName: string } }[])
+        .map((a) => ({ key: a.uuid, name: a.displayName, icon: a.displayIcon, role: a.role?.displayName }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      CATALOG_CACHE[game] = items; return items;
+    }
+  } catch { /* réseau indispo → repli saisie libre */ }
+  return [];
+}
+
+const LOL_ROLES = ["TOP", "JGL", "MID", "BOT", "SUP"];
+const VALO_MAPS = ["Ascent", "Bind", "Haven", "Split", "Icebox", "Breeze", "Fracture", "Lotus", "Pearl", "Sunset", "Abyss"];
+type Pick = { role: string; key: string; name: string; icon?: string };
+
+function ChampPicker({ game, value, onPick, placeholder }: {
+  game: string; value?: { name?: string; icon?: string } | null; onPick: (v: CatItem) => void; placeholder?: string;
+}) {
+  const [cat, setCat] = useState<CatItem[]>([]);
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => { let live = true; loadCatalog(game).then((c) => { if (!live) return; setCat(c); if (c.length === 0) setFailed(true); }); return () => { live = false; }; }, [game]);
+  if (failed) return <input className="esp-input" placeholder={placeholder || "Nom"} value={value?.name || ""} onChange={(e) => onPick({ key: "", name: e.target.value, icon: "" })} />;
+  const list = (q ? cat.filter((c) => c.name.toLowerCase().includes(q.toLowerCase())) : cat).slice(0, 60);
+  return (
+    <div className="esp-picker">
+      <div className="esp-picker-val">
+        {value?.icon ? <img src={value.icon} alt="" width={22} height={22} /> : null}
+        <input className="esp-input" placeholder={placeholder || "Choisir…"} value={open ? q : (value?.name || "")}
+          onFocus={() => { setOpen(true); setQ(""); }} onChange={(e) => setQ(e.target.value)}
+          onBlur={() => setTimeout(() => setOpen(false), 160)} />
+      </div>
+      {open && (
+        <div className="esp-picker-list">
+          {list.map((c) => (
+            <button type="button" key={c.key} className="esp-picker-item" onMouseDown={() => { onPick(c); setOpen(false); }}>
+              <img src={c.icon} alt="" width={24} height={24} loading="lazy" /><span>{c.name}</span>{c.role ? <em>{c.role}</em> : null}
+            </button>
+          ))}
+          {list.length === 0 && <span className="esp-picker-none">Aucun résultat</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* --- Compositions d'équipe --- */
+function CompsSection({ team, game, isStaff, meId }: { team: string; game: string; isStaff: boolean; meId: string }) {
+  const [rows, setRows] = useState<Record<string, unknown>[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [opponent, setOpponent] = useState("");
+  const [extra, setExtra] = useState("");
+  const [notes, setNotes] = useState("");
+  const [picks, setPicks] = useState<Pick[]>([]);
+  const [bans, setBans] = useState<Pick[]>([]);
+  const slots = game === "lol" ? LOL_ROLES : ["1", "2", "3", "4", "5"];
+
+  const reset = () => { setName(""); setOpponent(""); setExtra(""); setNotes(""); setPicks([]); setBans([]); setOpen(false); };
+  const load = useCallback(async () => {
+    if (!supabase) return; setLoading(true);
+    const r = await supabase.from("team_comps").select("*").eq("team", team).eq("game", game).order("created_at", { ascending: false });
+    if (r.error) { setErr(true); setRows([]); } else { setErr(false); setRows((r.data as Record<string, unknown>[]) || []); }
+    setLoading(false);
+  }, [team, game]);
+  useEffect(() => { load(); }, [load]);
+
+  const setPick = (i: number, c: CatItem) => setPicks((p) => { const n = [...p]; n[i] = { role: slots[i], key: c.key, name: c.name, icon: c.icon }; return n; });
+  const setBan = (i: number, c: CatItem) => setBans((p) => { const n = [...p]; n[i] = { role: "ban", key: c.key, name: c.name, icon: c.icon }; return n; });
+
+  async function save() {
+    if (!supabase || !name.trim()) return;
+    const payload = {
+      team, game, name: name.trim(), opponent: opponent.trim() || null,
+      map: game === "valorant" ? (extra || null) : null, side: game === "lol" ? (extra || null) : null,
+      picks: slots.map((role, i) => picks[i] || { role, key: "", name: "" }).filter((p) => p.name),
+      bans: game === "lol" ? bans.filter((b) => b && b.name) : [],
+      notes: notes.trim() || null,
+    };
+    const { error } = await supabase.from("team_comps").insert(payload);
+    if (error) { alert("Enregistrement impossible : " + error.message); return; }
+    reset(); load();
+  }
+  async function del(id: unknown) {
+    if (!supabase || !confirm("Supprimer cette composition ?")) return;
+    await supabase.from("team_comps").delete().eq("id", id); load();
+  }
+
+  if (err) return <div className="esp-card esp-center"><p className="muted">Module non activé (table « team_comps » absente). Lance le SQL fourni.</p></div>;
+  if (loading) return <p className="muted">Chargement…</p>;
+  return (
+    <div>
+      <div className="esp-compo-head">
+        <button className="btn btn--sm" onClick={() => (open ? reset() : setOpen(true))}>{open ? "Fermer" : "+ Nouvelle compo"}</button>
+      </div>
+      {open && (
+        <div className="esp-card esp-compo-form">
+          <div className="esp-compo-row">
+            <label className="esp-field"><span>Nom de la compo</span><input className="esp-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex : Comp poke vs dive" /></label>
+            <label className="esp-field"><span>Adversaire (optionnel)</span><input className="esp-input" value={opponent} onChange={(e) => setOpponent(e.target.value)} /></label>
+            {game === "valorant" ? (
+              <label className="esp-field"><span>Map</span><select className="esp-input" value={extra} onChange={(e) => setExtra(e.target.value)}><option value="">—</option>{VALO_MAPS.map((m) => <option key={m} value={m}>{m}</option>)}</select></label>
+            ) : (
+              <label className="esp-field"><span>Side</span><select className="esp-input" value={extra} onChange={(e) => setExtra(e.target.value)}><option value="">—</option><option value="Bleu">Bleu</option><option value="Rouge">Rouge</option></select></label>
+            )}
+          </div>
+          <p className="esp-compo-lab">Picks</p>
+          <div className="esp-compo-grid">
+            {slots.map((role, i) => (
+              <div key={role} className="esp-compo-slot">
+                <span className="esp-compo-role">{role}</span>
+                <ChampPicker game={game} value={picks[i]} onPick={(c) => setPick(i, c)} />
+              </div>
+            ))}
+          </div>
+          {game === "lol" && (
+            <>
+              <p className="esp-compo-lab">Bans (optionnel)</p>
+              <div className="esp-compo-grid">
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <div key={i} className="esp-compo-slot"><span className="esp-compo-role">Ban {i + 1}</span><ChampPicker game={game} value={bans[i]} onPick={(c) => setBan(i, c)} /></div>
+                ))}
+              </div>
+            </>
+          )}
+          <label className="esp-field" style={{ marginTop: ".6rem" }}><span>Notes / plan de jeu</span><textarea className="esp-input" value={notes} onChange={(e) => setNotes(e.target.value)} /></label>
+          <div style={{ display: "flex", gap: ".5rem", marginTop: ".6rem" }}>
+            <button className="btn btn--sm" onClick={save} disabled={!name.trim()}>Enregistrer</button>
+            <button className="btn btn--ghost btn--sm" onClick={reset}>Annuler</button>
+          </div>
+        </div>
+      )}
+      {rows.length === 0 ? <div className="esp-card esp-center"><p className="muted">Aucune composition pour l&apos;instant.</p></div> : (
+        <div className="esp-compo-list">
+          {rows.map((r) => {
+            const rpicks = (r.picks as Pick[]) || []; const rbans = (r.bans as Pick[]) || [];
+            const canDel = isStaff || r.author === meId;
+            return (
+              <div key={String(r.id)} className="esp-card esp-compo-card">
+                <div className="esp-compo-cardhead">
+                  <strong>{r.name as string}</strong>
+                  <span className="muted">{[r.map, r.side, r.opponent ? "vs " + r.opponent : ""].filter(Boolean).join(" · ")}</span>
+                  {canDel && <button className="esp-del" onClick={() => del(r.id)}>Supprimer</button>}
+                </div>
+                <div className="esp-compo-picks">
+                  {rpicks.map((p, i) => (
+                    <div key={i} className="esp-champ"><span className="esp-champ-role">{p.role}</span>{p.icon ? <img src={p.icon} alt="" width={40} height={40} /> : <span className="esp-champ-ph">{p.name.slice(0, 2)}</span>}<span className="esp-champ-name">{p.name}</span></div>
+                  ))}
+                </div>
+                {rbans.length > 0 && <div className="esp-compo-bans">Bans : {rbans.map((b, i) => <img key={i} src={b.icon} alt={b.name} title={b.name} width={22} height={22} />)}</div>}
+                {r.notes ? <p className="esp-compo-notes">{r.notes as string}</p> : null}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* --- Pools par joueur --- */
+function PoolsSection({ team, game, isStaff, meId, members }: { team: string; game: string; isStaff: boolean; meId: string; members: Record<string, Profile> }) {
+  const [rows, setRows] = useState<Record<string, unknown>[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(false);
+  const [role, setRole] = useState("");
+  const load = useCallback(async () => {
+    if (!supabase) return; setLoading(true);
+    const r = await supabase.from("player_pool").select("*").eq("game", game);
+    if (r.error) { setErr(true); setRows([]); } else { setErr(false); setRows((r.data as Record<string, unknown>[]) || []); }
+    setLoading(false);
+  }, [game]);
+  useEffect(() => { load(); }, [load]);
+
+  async function add(c: CatItem) {
+    if (!supabase || !c.name) return;
+    const { error } = await supabase.from("player_pool").upsert(
+      { user_id: meId, game, champ_key: c.key || c.name, champ_name: c.name, icon: c.icon || null, role: role || null },
+      { onConflict: "user_id,game,champ_key" });
+    if (error) { alert("Ajout impossible : " + error.message); return; }
+    load();
+  }
+  async function remove(id: unknown) { if (!supabase) return; await supabase.from("player_pool").delete().eq("id", id); load(); }
+
+  if (err) return <div className="esp-card esp-center"><p className="muted">Module non activé (table « player_pool » absente). Lance le SQL fourni.</p></div>;
+  if (loading) return <p className="muted">Chargement…</p>;
+  const mine = rows.filter((r) => r.user_id === meId);
+  // membres de l'équipe courante (+ moi)
+  const teamIds = new Set(Object.keys(members));
+  const byUser: Record<string, Record<string, unknown>[]> = {};
+  for (const r of rows) { const u = r.user_id as string; if (!teamIds.has(u)) continue; (byUser[u] = byUser[u] || []).push(r); }
+  return (
+    <div>
+      <div className="esp-card esp-compo-form">
+        <p className="esp-compo-lab" style={{ marginTop: 0 }}>Mon pool ({game === "lol" ? "champions" : "agents"})</p>
+        <div className="esp-pool-add">
+          {game === "lol" && (
+            <select className="esp-input" value={role} onChange={(e) => setRole(e.target.value)} style={{ maxWidth: 110 }}>
+              <option value="">Rôle</option>{LOL_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+            </select>
+          )}
+          <ChampPicker game={game} onPick={add} placeholder={"Ajouter à mon pool…"} />
+        </div>
+        <div className="esp-pool-chips">
+          {mine.length === 0 ? <span className="muted">Ton pool est vide — ajoute tes champions/agents.</span> :
+            mine.map((r) => (
+              <span key={String(r.id)} className="esp-poolchip">
+                {r.icon ? <img src={r.icon as string} alt="" width={24} height={24} /> : null}
+                {r.champ_name as string}{r.role ? <em>{r.role as string}</em> : null}
+                <button onClick={() => remove(r.id)} aria-label="Retirer">✕</button>
+              </span>
+            ))}
+        </div>
+      </div>
+      <p className="esp-compo-lab">Pools de l&apos;équipe</p>
+      <div className="esp-pool-team">
+        {Object.keys(byUser).length === 0 ? <p className="muted">Aucun pool renseigné dans l&apos;équipe.</p> :
+          Object.entries(byUser).map(([uid, list]) => (
+            <div key={uid} className="esp-card esp-pool-player">
+              <strong>{members[uid]?.pseudo || "—"}</strong>
+              <div className="esp-pool-chips">
+                {list.map((r) => <span key={String(r.id)} className="esp-poolchip sm">{r.icon ? <img src={r.icon as string} alt="" width={20} height={20} /> : null}{r.champ_name as string}</span>)}
+              </div>
+            </div>
+          ))}
+      </div>
+      {isStaff ? null : null}
+    </div>
+  );
+}
+
+function CompoView({ team, isStaff, meId, members }: { team: string; isStaff: boolean; meId: string; members: Record<string, Profile> }) {
+  const [sub, setSub] = useState<"comps" | "pools">("comps");
+  const game = team; // 'valorant' | 'lol'
+  return (
+    <div>
+      <div className="esp-seg" style={{ marginBottom: "1rem" }}>
+        <button className={sub === "comps" ? "on" : ""} onClick={() => setSub("comps")}>Compositions</button>
+        <button className={sub === "pools" ? "on" : ""} onClick={() => setSub("pools")}>Pools joueurs</button>
+      </div>
+      {sub === "comps" ? <CompsSection team={team} game={game} isStaff={isStaff} meId={meId} />
+        : <PoolsSection team={team} game={game} isStaff={isStaff} meId={meId} members={members} />}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Tableau de bord (connecté)                                         */
 /* ------------------------------------------------------------------ */
 function Dashboard({ profile, onLogout }: { profile: Profile; onLogout: () => void }) {
-  const [tab, setTab] = useState<"home" | "seances" | "week" | "calendar" | "team">("home");
+  const [tab, setTab] = useState<"home" | "seances" | "week" | "calendar" | "compos" | "team">("home");
   const [team, setTeam] = useState<string>(teamKey(profile.team) || "valorant");
   const [seances, setSeances] = useState<Seance[]>([]);
   const [avails, setAvails] = useState<Availability[]>([]);
@@ -900,6 +1166,7 @@ function Dashboard({ profile, onLogout }: { profile: Profile; onLogout: () => vo
     { key: "seances", label: "Séances" },
     { key: "week", label: "Dispos semaine" },
     { key: "calendar", label: "Calendrier" },
+    { key: "compos", label: "Compos" },
     { key: "team", label: "Équipe" },
   ];
 
@@ -960,6 +1227,7 @@ function Dashboard({ profile, onLogout }: { profile: Profile; onLogout: () => vo
 
       {tab === "week" && <WeeklyAvailability profile={me} profiles={teamMembers} />}
       {tab === "calendar" && <CalendarView seances={seances} team={team} />}
+      {tab === "compos" && <CompoView team={team} isStaff={isStaff} meId={profile.id} members={teamMembers} />}
       {tab === "team" && <RosterView members={teamMembers} me={me} onSaved={load} />}
     </>
   );
