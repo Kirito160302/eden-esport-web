@@ -11,8 +11,13 @@ type Team = { id: string; club_id: string; name: string; season?: string | null 
 type Player = { id: string; club_id: string; team_id: string | null; first_name: string; last_name: string; birthdate?: string | null; licence_no?: string | null; status?: string | null; notes?: string | null };
 type Member = { id: string; club_id: string; user_id: string; role: string; status: string };
 type Guardian = { id: string; player_id: string; user_id: string };
+type CEvent = { id: string; club_id: string; team_id: string | null; type: string; starts_at: string; place?: string | null; opponent?: string | null; notes?: string | null };
+type Attend = { id: string; event_id: string; player_id: string; status: string };
 
 const ROLE_LABEL: Record<string, string> = { dirigeant: "Dirigeant", educateur: "Éducateur", joueur: "Joueur", parent: "Parent" };
+const EVENT_TYPES: [string, string][] = [["match", "Match"], ["entrainement", "Entraînement"], ["plateau", "Plateau"]];
+const eventLabel = (t: string) => EVENT_TYPES.find(([k]) => k === t)?.[1] || t;
+const fmtDT = (iso: string) => new Date(iso).toLocaleString("fr-FR", { weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 
 /* ================================================================
    CONNEXION / INSCRIPTION
@@ -276,6 +281,110 @@ function MesEnfants({ players, teams }: { players: Player[]; teams: Team[] }) {
 }
 
 /* ================================================================
+   CONVOCATIONS & PRÉSENCES
+   ================================================================ */
+function Convocations({ club, role, teams, players, events, attendance, meId, reload }: {
+  club: Club; role: string; teams: Team[]; players: Player[]; events: CEvent[]; attendance: Attend[]; meId: string; reload: () => void;
+}) {
+  const isManager = role === "dirigeant" || role === "educateur";
+  const [open, setOpen] = useState(false);
+  const [f, setF] = useState<Record<string, string>>({ type: "match" });
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  const now = Date.now();
+  const upcoming = [...events].filter((e) => new Date(e.starts_at).getTime() > now - 6 * 3600 * 1000).sort((a, b) => +new Date(a.starts_at) - +new Date(b.starts_at));
+  const past = [...events].filter((e) => new Date(e.starts_at).getTime() <= now - 6 * 3600 * 1000).sort((a, b) => +new Date(b.starts_at) - +new Date(a.starts_at)).slice(0, 8);
+  const attKey = (eid: string, pid: string) => attendance.find((a) => a.event_id === eid && a.player_id === pid)?.status;
+
+  async function create(e: React.FormEvent) {
+    e.preventDefault(); if (!supabase || !f.team_id || !f.date) return;
+    await supabase.from("club_events").insert({
+      club_id: club.id, team_id: f.team_id, type: f.type || "match",
+      starts_at: new Date(f.date).toISOString(), place: f.place || null, opponent: f.opponent || null, notes: f.notes || null,
+    });
+    setF({ type: "match" }); setOpen(false); reload();
+  }
+  async function delEvent(id: string) { if (!supabase || !confirm("Supprimer cet événement ?")) return; await supabase.from("club_events").delete().eq("id", id); reload(); }
+  async function respond(eventId: string, playerId: string, status: string) {
+    if (!supabase) return;
+    await supabase.from("event_attendance").upsert({ event_id: eventId, player_id: playerId, status, responded_by: meId, updated_at: new Date().toISOString() }, { onConflict: "event_id,player_id" });
+    reload();
+  }
+
+  const EventCard = ({ e, isPast }: { e: CEvent; isPast?: boolean }) => {
+    const cat = teams.find((t) => t.id === e.team_id);
+    const roster = players.filter((p) => p.team_id === e.team_id);
+    const cnt = (s: string) => roster.filter((p) => attKey(e.id, p.id) === s).length;
+    const isOpen = expanded === e.id;
+    return (
+      <div className="esp-card cl-event">
+        <div className="cl-event-head" onClick={() => setExpanded(isOpen ? null : e.id)}>
+          <span className={"cl-etype cl-etype-" + e.type}>{eventLabel(e.type)}</span>
+          <div className="cl-event-main">
+            <strong>{cat?.name || "—"}{e.opponent ? ` · vs ${e.opponent}` : ""}</strong>
+            <span className="muted">{fmtDT(e.starts_at)}{e.place ? ` · ${e.place}` : ""}</span>
+          </div>
+          <div className="cl-event-cnt"><span className="ok">{cnt("present")}✓</span> <span className="no">{cnt("absent")}✗</span> {isManager ? <span className="wait">{roster.length - cnt("present") - cnt("absent") - cnt("peutetre")}?</span> : null}</div>
+        </div>
+        {isOpen && (
+          <div className="cl-event-body">
+            {e.notes ? <p className="muted" style={{ fontSize: ".85rem" }}>{e.notes}</p> : null}
+            {roster.length === 0 ? <p className="muted">Aucun joueur dans cette catégorie.</p> : (
+              <div className="cl-att-list">
+                {roster.map((p) => {
+                  const st = attKey(e.id, p.id);
+                  return (
+                    <div key={p.id} className="cl-att-row">
+                      <span className="cl-att-name">{p.last_name} {p.first_name}</span>
+                      <div className="cl-att-btns">
+                        {(["present", "peutetre", "absent"] as const).map((s) => (
+                          <button key={s} className={"cl-att-btn cl-att-" + s + (st === s ? " on" : "")} disabled={isPast && !isManager}
+                            onClick={() => respond(e.id, p.id, s)}>{s === "present" ? "Présent" : s === "peutetre" ? "Peut-être" : "Absent"}</button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {isManager && <button className="esp-del" style={{ marginTop: ".6rem" }} onClick={() => delEvent(e.id)}>Supprimer l&apos;événement</button>}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      {isManager && (
+        <div className="cl-conv-head">
+          <button className="btn btn--sm" onClick={() => setOpen((v) => !v)} disabled={teams.length === 0}>{open ? "Fermer" : "+ Convoquer / événement"}</button>
+          {teams.length === 0 && <span className="muted" style={{ fontSize: ".85rem" }}>Crée d&apos;abord une catégorie dans Effectifs.</span>}
+        </div>
+      )}
+      {open && (
+        <form className="esp-card cl-addplayer" onSubmit={create}>
+          <div className="cl-addgrid">
+            <label className="esp-field"><span>Catégorie</span><select className="esp-input" required value={f.team_id || ""} onChange={(e) => setF({ ...f, team_id: e.target.value })}><option value="">—</option>{teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
+            <label className="esp-field"><span>Type</span><select className="esp-input" value={f.type} onChange={(e) => setF({ ...f, type: e.target.value })}>{EVENT_TYPES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
+            <label className="esp-field"><span>Date & heure</span><input className="esp-input" type="datetime-local" required value={f.date || ""} onChange={(e) => setF({ ...f, date: e.target.value })} /></label>
+            <label className="esp-field"><span>Lieu</span><input className="esp-input" value={f.place || ""} onChange={(e) => setF({ ...f, place: e.target.value })} /></label>
+            <label className="esp-field"><span>Adversaire (match)</span><input className="esp-input" value={f.opponent || ""} onChange={(e) => setF({ ...f, opponent: e.target.value })} /></label>
+          </div>
+          <label className="esp-field"><span>Notes / convocation</span><textarea className="esp-input" value={f.notes || ""} onChange={(e) => setF({ ...f, notes: e.target.value })} /></label>
+          <button className="btn btn--sm" type="submit" style={{ marginTop: ".6rem" }}>Créer</button>
+        </form>
+      )}
+
+      <p className="cl-sectlab">À venir</p>
+      {upcoming.length === 0 ? <div className="esp-card esp-center"><p className="muted">Aucun événement à venir.</p></div> :
+        <div className="cl-events">{upcoming.map((e) => <EventCard key={e.id} e={e} />)}</div>}
+      {past.length > 0 && <><p className="cl-sectlab">Passés</p><div className="cl-events">{past.map((e) => <EventCard key={e.id} e={e} isPast />)}</div></>}
+    </div>
+  );
+}
+
+/* ================================================================
    ESPACE D'UN CLUB (membre actif)
    ================================================================ */
 function ClubSpace({ membership, meId, onLeaveClub }: { membership: Membership; meId: string; onLeaveClub: () => void }) {
@@ -287,20 +396,26 @@ function ClubSpace({ membership, meId, onLeaveClub }: { membership: Membership; 
   const [members, setMembers] = useState<Member[]>([]);
   const [staff, setStaff] = useState<{ team_id: string; user_id: string }[]>([]);
   const [guardians, setGuardians] = useState<Guardian[]>([]);
+  const [events, setEvents] = useState<CEvent[]>([]);
+  const [attendance, setAttendance] = useState<Attend[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("dashboard");
 
   const load = useCallback(async () => {
     if (!supabase) return; setLoading(true);
-    const [t, p, m] = await Promise.all([
+    const [t, p, m, ev, at] = await Promise.all([
       supabase.from("club_teams").select("*").eq("club_id", club.id).order("name"),
       supabase.from("players").select("*").eq("club_id", club.id),
       supabase.from("club_members").select("*").eq("club_id", club.id),
+      supabase.from("club_events").select("*").eq("club_id", club.id),
+      supabase.from("event_attendance").select("*"),
     ]);
     const tt = (t.data as Team[]) || []; setTeams(tt);
     setPlayers((p.data as Player[]) || []);
     const mm = (m.data as Member[]) || []; setMembers(mm);
+    setEvents((ev.data as CEvent[]) || []);
+    setAttendance((at.data as Attend[]) || []);
     const teamIds = tt.map((x) => x.id);
     const [st, gu, pr] = await Promise.all([
       teamIds.length ? supabase.from("team_staff").select("*").in("team_id", teamIds) : Promise.resolve({ data: [] }),
@@ -316,9 +431,9 @@ function ClubSpace({ membership, meId, onLeaveClub }: { membership: Membership; 
   }, [club.id]);
   useEffect(() => { load(); }, [load]);
 
-  const TABS = isAdmin ? [["dashboard", "Tableau de bord"], ["effectifs", "Effectifs"], ["membres", "Membres"]]
-    : role === "educateur" ? [["dashboard", "Tableau de bord"], ["effectifs", "Effectifs"]]
-      : role === "parent" ? [["dashboard", "Tableau de bord"], ["enfants", "Mes enfants"]]
+  const TABS = isAdmin ? [["dashboard", "Tableau de bord"], ["effectifs", "Effectifs"], ["convocations", "Convocations"], ["membres", "Membres"]]
+    : role === "educateur" ? [["dashboard", "Tableau de bord"], ["effectifs", "Effectifs"], ["convocations", "Convocations"]]
+      : role === "parent" ? [["dashboard", "Tableau de bord"], ["convocations", "Convocations"], ["enfants", "Mes enfants"]]
         : [["dashboard", "Tableau de bord"]];
 
   return (
@@ -337,6 +452,7 @@ function ClubSpace({ membership, meId, onLeaveClub }: { membership: Membership; 
             </div>
           )}
           {tab === "effectifs" && <Effectifs club={club} role={role} teams={teams} players={players} members={members} staff={staff} guardians={guardians} profiles={profiles} reload={load} />}
+          {tab === "convocations" && <Convocations club={club} role={role} teams={teams} players={players} events={events} attendance={attendance} meId={meId} reload={load} />}
           {tab === "membres" && isAdmin && <Membres club={club} members={members} profiles={profiles} reload={load} />}
           {tab === "enfants" && <MesEnfants players={players} teams={teams} />}
         </>

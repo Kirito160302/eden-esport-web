@@ -749,3 +749,48 @@ begin
   return m;
 end; $$;
 grant execute on function public.join_club(text,text) to authenticated;
+
+-- ============================================================
+--  PLATEFORME CLUBS — Phase 1b : calendrier + convocations/présences 07/09/2026
+-- ============================================================
+create table if not exists public.club_events (
+  id uuid primary key default gen_random_uuid(),
+  club_id uuid not null references public.clubs(id) on delete cascade,
+  team_id uuid references public.club_teams(id) on delete cascade,
+  type text not null default 'entrainement' check (type in ('match','entrainement','plateau')),
+  starts_at timestamptz not null, place text, opponent text, notes text,
+  created_by uuid default auth.uid(), created_at timestamptz default now()
+);
+create table if not exists public.event_attendance (
+  id uuid primary key default gen_random_uuid(),
+  event_id uuid not null references public.club_events(id) on delete cascade,
+  player_id uuid not null references public.players(id) on delete cascade,
+  status text not null default 'present' check (status in ('present','absent','peutetre')),
+  responded_by uuid default auth.uid(), updated_at timestamptz default now(),
+  unique (event_id, player_id)
+);
+alter table public.club_events enable row level security;
+alter table public.event_attendance enable row level security;
+
+-- Événements : dirigeant + éducateur de la catégorie + parent d'un enfant de la catégorie
+drop policy if exists "ce_read" on public.club_events;
+create policy "ce_read" on public.club_events for select to authenticated using (
+  public.is_club_admin(club_id) or public.is_team_staff(team_id)
+  or exists(select 1 from public.players p join public.guardians g on g.player_id=p.id where p.team_id=club_events.team_id and g.user_id=auth.uid()));
+drop policy if exists "ce_write" on public.club_events;
+create policy "ce_write" on public.club_events for all to authenticated using (
+  public.is_club_admin(club_id) or public.is_team_staff(team_id)
+) with check (public.is_club_admin(club_id) or public.is_team_staff(team_id));
+
+-- Présences : staff de l'événement + parent de l'enfant concerné
+drop policy if exists "ea_read" on public.event_attendance;
+create policy "ea_read" on public.event_attendance for select to authenticated using (
+  exists(select 1 from public.club_events e where e.id=event_attendance.event_id and (public.is_club_admin(e.club_id) or public.is_team_staff(e.team_id)))
+  or exists(select 1 from public.guardians g where g.player_id=event_attendance.player_id and g.user_id=auth.uid()));
+drop policy if exists "ea_write" on public.event_attendance;
+create policy "ea_write" on public.event_attendance for all to authenticated using (
+  exists(select 1 from public.guardians g where g.player_id=event_attendance.player_id and g.user_id=auth.uid())
+  or exists(select 1 from public.club_events e where e.id=event_attendance.event_id and (public.is_club_admin(e.club_id) or public.is_team_staff(e.team_id)))
+) with check (
+  exists(select 1 from public.guardians g where g.player_id=event_attendance.player_id and g.user_id=auth.uid())
+  or exists(select 1 from public.club_events e where e.id=event_attendance.event_id and (public.is_club_admin(e.club_id) or public.is_team_staff(e.team_id))));

@@ -1516,3 +1516,28 @@ textarea.esp-input{min-height:64px;resize:vertical}
 .cl-badge{border-radius:999px;padding:.15rem .6rem;font-size:.78rem;font-weight:600}
 .cl-badge.ok{background:rgba(31,122,77,.22);color:#5bd08d}
 @media(max-width:760px){ .cl-noclub{grid-template-columns:1fr} .cl-eff{grid-template-columns:1fr} .cl-cats{flex-direction:row;flex-wrap:wrap;overflow-x:auto} }
+
+/* ---- Espace club : convocations ---- */
+.cl-conv-head{display:flex;align-items:center;gap:.7rem;margin-bottom:.9rem;flex-wrap:wrap}
+.cl-sectlab{font-family:var(--f-display);font-weight:700;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:1.2rem 0 .5rem}
+.cl-events{display:flex;flex-direction:column;gap:.6rem}
+.cl-event{padding:0;overflow:hidden}
+.cl-event-head{display:flex;align-items:center;gap:.8rem;padding:.8rem 1rem;cursor:pointer}
+.cl-event-head:hover{background:var(--surface-2)}
+.cl-etype{flex:none;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:.2rem .5rem;border-radius:6px;background:var(--surface-2);color:var(--muted)}
+.cl-etype-match{background:rgba(125,92,255,.18);color:var(--lavender)}
+.cl-etype-plateau{background:rgba(246,201,92,.16);color:#f6c95c}
+.cl-event-main{display:flex;flex-direction:column;min-width:0;flex:1}
+.cl-event-main .muted{font-size:.82rem}
+.cl-event-cnt{flex:none;font-size:.85rem;display:flex;gap:.5rem}
+.cl-event-cnt .ok{color:#5bd08d}.cl-event-cnt .no{color:#e88a8a}.cl-event-cnt .wait{color:var(--muted)}
+.cl-event-body{padding:.4rem 1rem 1rem;border-top:1px solid var(--line-2)}
+.cl-att-list{display:flex;flex-direction:column;gap:.4rem;margin-top:.6rem}
+.cl-att-row{display:flex;align-items:center;justify-content:space-between;gap:.6rem;flex-wrap:wrap}
+.cl-att-name{font-size:.9rem}
+.cl-att-btns{display:flex;gap:.3rem}
+.cl-att-btn{border:1px solid var(--line-2);background:var(--surface-2);color:var(--muted);border-radius:7px;padding:.3rem .6rem;cursor:pointer;font:inherit;font-size:.78rem}
+.cl-att-btn.on.cl-att-present{background:rgba(31,122,77,.28);color:#5bd08d;border-color:transparent}
+.cl-att-btn.on.cl-att-absent{background:rgba(180,60,60,.28);color:#e88a8a;border-color:transparent}
+.cl-att-btn.on.cl-att-peutetre{background:rgba(246,201,92,.22);color:#f6c95c;border-color:transparent}
+.cl-att-btn:disabled{opacity:.5;cursor:default}
