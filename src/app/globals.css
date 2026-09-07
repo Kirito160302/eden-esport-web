@@ -1476,3 +1476,43 @@ textarea.esp-input{min-height:64px;resize:vertical}
 .esp-pool-team{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:.8rem}
 .esp-pool-player{padding:.8rem}
 .esp-pool-player strong{display:block;margin-bottom:.5rem}
+
+/* ---- Espace club (plateforme multi-clubs) ---- */
+.cl-shell{min-width:0}
+.cl-auth{max-width:440px;margin:2rem auto}
+.cl-noclub{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.cl-noclub .esp-card{padding:1.2rem}
+.cl-clublist{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.8rem;margin:.6rem 0 1rem}
+.cl-clubcard{display:flex;flex-direction:column;gap:.2rem;text-align:left;cursor:pointer;padding:1rem;border:1px solid var(--line-2);background:var(--surface)}
+.cl-clubcard:hover{border-color:var(--lavender)}
+.cl-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.8rem;margin-top:1rem}
+.cl-kpi{display:flex;flex-direction:column;gap:.2rem;padding:1.1rem}
+.cl-kpi-v{font-family:var(--f-display);font-size:1.8rem;font-weight:800}
+.cl-eff{display:grid;grid-template-columns:220px 1fr;gap:1rem;margin-top:1rem;align-items:start}
+.cl-cats{background:var(--surface);border:1px solid var(--line-2);border-radius:12px;padding:.6rem;display:flex;flex-direction:column;gap:.2rem}
+.cl-cats-h{font-family:var(--f-display);font-weight:700;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:.4rem .5rem}
+.cl-cat{text-align:left;border:none;background:transparent;color:var(--text);padding:.5rem .6rem;border-radius:8px;cursor:pointer;font:inherit;font-size:.9rem}
+.cl-cat:hover{background:var(--surface-2)}
+.cl-cat.on{background:var(--violet);color:#fff}
+.cl-cat em{color:inherit;opacity:.7;font-style:normal;font-size:.8rem}
+.cl-addcat{display:flex;flex-direction:column;gap:.4rem;margin-top:.6rem;padding-top:.6rem;border-top:1px solid var(--line-2)}
+.cl-roster{min-width:0}
+.cl-roster-head{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:.9rem;flex-wrap:wrap}
+.cl-assign{display:flex;align-items:center;gap:.5rem;margin-bottom:.8rem;font-size:.85rem;flex-wrap:wrap}
+.cl-addplayer{padding:1rem;margin-bottom:1rem}
+.cl-addgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.7rem;margin-bottom:.7rem}
+.cl-players{display:flex;flex-direction:column;gap:.6rem}
+.cl-player{padding:.8rem 1rem}
+.cl-player-top{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap}
+.cl-player-top .esp-del{margin-left:auto}
+.cl-player>strong{display:block}
+.cl-guardians{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-top:.6rem;font-size:.84rem}
+.cl-gchip{display:inline-flex;align-items:center;gap:.35rem;background:var(--surface-2);border:1px solid var(--line-2);border-radius:999px;padding:.15rem .55rem;font-size:.8rem}
+.cl-gchip button,.cl-guardians .esp-del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:.72rem}
+.cl-gsel{max-width:200px;font-size:.82rem}
+.cl-invite{display:flex;flex-direction:column;gap:.5rem;padding:1rem;margin-bottom:1rem}
+.cl-code{font-family:var(--f-display);font-size:1.6rem;font-weight:800;letter-spacing:.25em;color:var(--lavender)}
+.cl-pendlab{color:#f6c95c;font-size:.88rem;margin:.4rem 0}
+.cl-badge{border-radius:999px;padding:.15rem .6rem;font-size:.78rem;font-weight:600}
+.cl-badge.ok{background:rgba(31,122,77,.22);color:#5bd08d}
+@media(max-width:760px){ .cl-noclub{grid-template-columns:1fr} .cl-eff{grid-template-columns:1fr} .cl-cats{flex-direction:row;flex-wrap:wrap;overflow-x:auto} }

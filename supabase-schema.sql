@@ -612,3 +612,140 @@ drop policy if exists "player_pool_read" on public.player_pool;
 drop policy if exists "player_pool_own"  on public.player_pool;
 create policy "player_pool_read" on public.player_pool for select to authenticated using (true);
 create policy "player_pool_own"  on public.player_pool for all to authenticated using (user_id = auth.uid() or public.is_staff()) with check (user_id = auth.uid() or public.is_staff());
+
+-- ============================================================
+--  PLATEFORME MULTI-CLUBS — Phase 1a (fondations + effectifs) 07/09/2026
+-- ============================================================
+create table if not exists public.clubs (
+  id uuid primary key default gen_random_uuid(),
+  name text not null, sport text, logo text,
+  invite_code text unique,
+  created_by uuid default auth.uid(), created_at timestamptz default now()
+);
+create table if not exists public.club_members (
+  id uuid primary key default gen_random_uuid(),
+  club_id uuid not null references public.clubs(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  role text not null default 'parent' check (role in ('dirigeant','educateur','joueur','parent')),
+  status text not null default 'en_attente' check (status in ('en_attente','actif')),
+  created_at timestamptz default now(),
+  unique (club_id, user_id)
+);
+create table if not exists public.club_teams (
+  id uuid primary key default gen_random_uuid(),
+  club_id uuid not null references public.clubs(id) on delete cascade,
+  name text not null, season text, notes text, created_at timestamptz default now()
+);
+create table if not exists public.team_staff (
+  team_id uuid not null references public.club_teams(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  primary key (team_id, user_id)
+);
+create table if not exists public.players (
+  id uuid primary key default gen_random_uuid(),
+  club_id uuid not null references public.clubs(id) on delete cascade,
+  team_id uuid references public.club_teams(id) on delete set null,
+  first_name text, last_name text, birthdate date, licence_no text,
+  status text default 'Actif', notes text, created_at timestamptz default now()
+);
+create table if not exists public.guardians (
+  id uuid primary key default gen_random_uuid(),
+  player_id uuid not null references public.players(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz default now(), unique (player_id, user_id)
+);
+
+-- Helpers (cloisonnement multi-tenant)
+create or replace function public.is_club_member(cid uuid) returns boolean
+  language sql stable security definer set search_path=public as $$
+  select exists(select 1 from public.club_members m where m.club_id=cid and m.user_id=auth.uid() and m.status='actif'); $$;
+create or replace function public.is_club_admin(cid uuid) returns boolean
+  language sql stable security definer set search_path=public as $$
+  select exists(select 1 from public.club_members m where m.club_id=cid and m.user_id=auth.uid() and m.status='actif' and m.role='dirigeant'); $$;
+create or replace function public.is_team_staff(tid uuid) returns boolean
+  language sql stable security definer set search_path=public as $$
+  select exists(select 1 from public.team_staff s where s.team_id=tid and s.user_id=auth.uid()); $$;
+grant execute on function public.is_club_member(uuid) to authenticated;
+grant execute on function public.is_club_admin(uuid) to authenticated;
+grant execute on function public.is_team_staff(uuid) to authenticated;
+
+alter table public.clubs enable row level security;
+alter table public.club_members enable row level security;
+alter table public.club_teams enable row level security;
+alter table public.team_staff enable row level security;
+alter table public.players enable row level security;
+alter table public.guardians enable row level security;
+
+-- clubs : lisible par ses membres (actifs ou en attente) ; modifiable par le dirigeant
+drop policy if exists "clubs_read" on public.clubs;
+create policy "clubs_read" on public.clubs for select to authenticated using (exists(select 1 from public.club_members m where m.club_id=clubs.id and m.user_id=auth.uid()));
+drop policy if exists "clubs_admin" on public.clubs;
+create policy "clubs_admin" on public.clubs for update to authenticated using (public.is_club_admin(id)) with check (public.is_club_admin(id));
+
+-- club_members : chacun voit sa/ses adhésion(s) + les membres actifs voient tout le club ; dirigeant gère
+drop policy if exists "cm_read" on public.club_members;
+create policy "cm_read" on public.club_members for select to authenticated using (user_id = auth.uid() or public.is_club_member(club_id));
+drop policy if exists "cm_admin" on public.club_members;
+create policy "cm_admin" on public.club_members for update to authenticated using (public.is_club_admin(club_id)) with check (public.is_club_admin(club_id));
+drop policy if exists "cm_del" on public.club_members;
+create policy "cm_del" on public.club_members for delete to authenticated using (public.is_club_admin(club_id) or user_id = auth.uid());
+
+-- club_teams (catégories)
+drop policy if exists "ct_read" on public.club_teams;
+create policy "ct_read" on public.club_teams for select to authenticated using (public.is_club_member(club_id));
+drop policy if exists "ct_write" on public.club_teams;
+create policy "ct_write" on public.club_teams for all to authenticated using (public.is_club_admin(club_id)) with check (public.is_club_admin(club_id));
+
+-- team_staff (éducateurs d'une catégorie)
+drop policy if exists "ts_read" on public.team_staff;
+create policy "ts_read" on public.team_staff for select to authenticated using (exists(select 1 from public.club_teams t where t.id=team_staff.team_id and public.is_club_member(t.club_id)));
+drop policy if exists "ts_write" on public.team_staff;
+create policy "ts_write" on public.team_staff for all to authenticated using (exists(select 1 from public.club_teams t where t.id=team_staff.team_id and public.is_club_admin(t.club_id))) with check (exists(select 1 from public.club_teams t where t.id=team_staff.team_id and public.is_club_admin(t.club_id)));
+
+-- players : dirigeant + éducateur de la catégorie + parent de l'enfant
+drop policy if exists "pl_read" on public.players;
+create policy "pl_read" on public.players for select to authenticated using (
+  public.is_club_admin(club_id) or public.is_team_staff(team_id)
+  or exists(select 1 from public.guardians g where g.player_id=players.id and g.user_id=auth.uid()));
+drop policy if exists "pl_write" on public.players;
+create policy "pl_write" on public.players for all to authenticated using (
+  public.is_club_admin(club_id) or public.is_team_staff(team_id)
+) with check (public.is_club_admin(club_id) or public.is_team_staff(team_id));
+
+-- guardians : le parent voit ses liens ; dirigeant/éducateur gèrent les rattachements
+drop policy if exists "gu_read" on public.guardians;
+create policy "gu_read" on public.guardians for select to authenticated using (
+  user_id = auth.uid()
+  or exists(select 1 from public.players p where p.id=guardians.player_id and (public.is_club_admin(p.club_id) or public.is_team_staff(p.team_id))));
+drop policy if exists "gu_write" on public.guardians;
+create policy "gu_write" on public.guardians for all to authenticated using (
+  exists(select 1 from public.players p where p.id=guardians.player_id and (public.is_club_admin(p.club_id) or public.is_team_staff(p.team_id)))
+) with check (exists(select 1 from public.players p where p.id=guardians.player_id and (public.is_club_admin(p.club_id) or public.is_team_staff(p.team_id))));
+
+-- RPC : créer un club (le créateur devient dirigeant actif) + code d'invitation
+create or replace function public.create_club(p_name text, p_sport text) returns public.clubs
+  language plpgsql security definer set search_path=public as $$
+declare c public.clubs;
+begin
+  insert into public.clubs(name, sport, invite_code, created_by)
+  values (p_name, p_sport, upper(substr(md5(random()::text),1,6)), auth.uid()) returning * into c;
+  insert into public.club_members(club_id, user_id, role, status) values (c.id, auth.uid(), 'dirigeant', 'actif');
+  return c;
+end; $$;
+grant execute on function public.create_club(text,text) to authenticated;
+
+-- RPC : rejoindre un club par code (statut en attente, à valider par le dirigeant)
+create or replace function public.join_club(p_code text, p_role text) returns public.club_members
+  language plpgsql security definer set search_path=public as $$
+declare cid uuid; r text; m public.club_members;
+begin
+  select id into cid from public.clubs where invite_code = upper(p_code);
+  if cid is null then raise exception 'Code club invalide'; end if;
+  r := coalesce(nullif(p_role,''),'parent');
+  if r not in ('educateur','parent','joueur') then r := 'parent'; end if;
+  select * into m from public.club_members where club_id=cid and user_id=auth.uid();
+  if m.id is not null then return m; end if;
+  insert into public.club_members(club_id, user_id, role, status) values (cid, auth.uid(), r, 'en_attente') returning * into m;
+  return m;
+end; $$;
+grant execute on function public.join_club(text,text) to authenticated;
