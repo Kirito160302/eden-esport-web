@@ -794,3 +794,63 @@ create policy "ea_write" on public.event_attendance for all to authenticated usi
 ) with check (
   exists(select 1 from public.guardians g where g.player_id=event_attendance.player_id and g.user_id=auth.uid())
   or exists(select 1 from public.club_events e where e.id=event_attendance.event_id and (public.is_club_admin(e.club_id) or public.is_team_staff(e.team_id))));
+
+-- ============================================================
+--  PLATEFORME CLUBS — Phase 1c : messagerie par catégorie + documents 07/09/2026
+-- ============================================================
+-- Accès à un "canal" catégorie : dirigeant, éducateur de la catégorie, ou parent d'un enfant de la catégorie
+create or replace function public.club_team_access(cid uuid, tid uuid) returns boolean
+  language sql stable security definer set search_path=public as $$
+  select public.is_club_admin(cid) or public.is_team_staff(tid)
+    or exists(select 1 from public.players p join public.guardians g on g.player_id=p.id where p.team_id=tid and g.user_id=auth.uid()); $$;
+grant execute on function public.club_team_access(uuid,uuid) to authenticated;
+
+create table if not exists public.club_messages (
+  id uuid primary key default gen_random_uuid(),
+  club_id uuid not null references public.clubs(id) on delete cascade,
+  team_id uuid not null references public.club_teams(id) on delete cascade,
+  sender uuid default auth.uid(), body text not null, created_at timestamptz default now()
+);
+create index if not exists club_messages_team_idx on public.club_messages(team_id, created_at);
+alter table public.club_messages enable row level security;
+drop policy if exists "cmsg_read" on public.club_messages;
+create policy "cmsg_read" on public.club_messages for select to authenticated using (public.club_team_access(club_id, team_id));
+drop policy if exists "cmsg_write" on public.club_messages;
+create policy "cmsg_write" on public.club_messages for insert to authenticated with check (sender = auth.uid() and public.club_team_access(club_id, team_id));
+drop policy if exists "cmsg_del" on public.club_messages;
+create policy "cmsg_del" on public.club_messages for delete to authenticated using (sender = auth.uid() or public.is_club_admin(club_id));
+do $$ begin alter publication supabase_realtime add table public.club_messages; exception when others then null; end $$;
+
+create table if not exists public.club_documents (
+  id uuid primary key default gen_random_uuid(),
+  club_id uuid not null references public.clubs(id) on delete cascade,
+  team_id uuid references public.club_teams(id) on delete set null,
+  player_id uuid references public.players(id) on delete cascade,
+  category text, file text, name text, notes text,
+  uploaded_by uuid default auth.uid(), created_at timestamptz default now()
+);
+alter table public.club_documents enable row level security;
+drop policy if exists "cdoc_all" on public.club_documents;
+create policy "cdoc_all" on public.club_documents for all to authenticated using (
+  public.is_club_admin(club_id) or public.is_team_staff(team_id)
+  or exists(select 1 from public.guardians g where g.player_id=club_documents.player_id and g.user_id=auth.uid())
+) with check (
+  public.is_club_admin(club_id) or public.is_team_staff(team_id)
+  or exists(select 1 from public.guardians g where g.player_id=club_documents.player_id and g.user_id=auth.uid()));
+
+-- Stockage privé cloisonné : chemin = <club_id>/<player_id>/<fichier>
+insert into storage.buckets (id, name, public) values ('club','club', false) on conflict (id) do nothing;
+create or replace function public.club_file_ok(p_name text) returns boolean
+  language plpgsql stable security definer set search_path=public as $$
+  declare pid uuid;
+  begin
+    begin pid := ((storage.foldername(p_name))[2])::uuid; exception when others then return false; end;
+    return exists(select 1 from public.players p where p.id=pid and (
+      public.is_club_admin(p.club_id) or public.is_team_staff(p.team_id)
+      or exists(select 1 from public.guardians g where g.player_id=p.id and g.user_id=auth.uid())));
+  end; $$;
+grant execute on function public.club_file_ok(text) to authenticated;
+drop policy if exists "club_storage_all" on storage.objects;
+create policy "club_storage_all" on storage.objects for all to authenticated
+  using (bucket_id='club' and public.club_file_ok(name))
+  with check (bucket_id='club' and public.club_file_ok(name));

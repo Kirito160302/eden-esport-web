@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { getSupabase, SUPABASE_ENABLED } from "@/lib/supabase";
 
 const supabase = getSupabase();
@@ -18,6 +18,24 @@ const ROLE_LABEL: Record<string, string> = { dirigeant: "Dirigeant", educateur: 
 const EVENT_TYPES: [string, string][] = [["match", "Match"], ["entrainement", "Entraînement"], ["plateau", "Plateau"]];
 const eventLabel = (t: string) => EVENT_TYPES.find(([k]) => k === t)?.[1] || t;
 const fmtDT = (iso: string) => new Date(iso).toLocaleString("fr-FR", { weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+const DOC_CATS = ["Licence", "Certificat médical", "Autorisation", "Autre"];
+type CDoc = { id: string; club_id: string; team_id: string | null; player_id: string; category?: string | null; file?: string | null; name?: string | null };
+type CMsg = { id: string; team_id: string; sender: string; body: string; created_at: string };
+
+async function uploadClubFile(clubId: string, playerId: string, file: File): Promise<{ path: string; name: string } | null> {
+  if (!supabase) return null;
+  const safe = file.name.replace(/[^\w.\-]+/g, "_");
+  const path = `${clubId}/${playerId}/${crypto.randomUUID()}-${safe}`;
+  const { error } = await supabase.storage.from("club").upload(path, file, { upsert: false });
+  if (error) { alert("Envoi du fichier impossible : " + error.message); return null; }
+  return { path, name: file.name };
+}
+async function openClubFile(path?: string | null) {
+  if (!supabase || !path) return;
+  const { data, error } = await supabase.storage.from("club").createSignedUrl(path, 120);
+  if (error || !data) { alert("Fichier introuvable."); return; }
+  window.open(data.signedUrl, "_blank", "noopener");
+}
 
 /* ================================================================
    CONNEXION / INSCRIPTION
@@ -385,6 +403,116 @@ function Convocations({ club, role, teams, players, events, attendance, meId, re
 }
 
 /* ================================================================
+   DOCUMENTS (licences, certificats médicaux…)
+   ================================================================ */
+function Documents({ club, teams, players, docs, reload }: {
+  club: Club; teams: Team[]; players: Player[]; docs: CDoc[]; reload: () => void;
+}) {
+  const [cat, setCat] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState("");
+
+  async function upload(player: Player, file: File) {
+    setBusy(player.id);
+    const r = await uploadClubFile(club.id, player.id, file);
+    if (r && supabase) await supabase.from("club_documents").insert({ club_id: club.id, team_id: player.team_id, player_id: player.id, category: cat[player.id] || "Autre", file: r.path, name: r.name });
+    setBusy(""); reload();
+  }
+  async function del(d: CDoc) {
+    if (!supabase || !confirm("Supprimer ce document ?")) return;
+    if (d.file) await supabase.storage.from("club").remove([d.file]);
+    await supabase.from("club_documents").delete().eq("id", d.id);
+    reload();
+  }
+  if (players.length === 0) return <div className="esp-card esp-center"><p className="muted">Aucun joueur accessible.</p></div>;
+  return (
+    <div className="cl-players">
+      {players.map((p) => {
+        const pd = docs.filter((d) => d.player_id === p.id);
+        return (
+          <div key={p.id} className="esp-card cl-player">
+            <div className="cl-player-top"><strong>{p.last_name} {p.first_name}</strong><span className="muted">{teams.find((t) => t.id === p.team_id)?.name || ""}</span></div>
+            <div className="cl-docs">
+              {pd.length === 0 ? <em className="muted" style={{ fontSize: ".85rem" }}>Aucun document.</em> :
+                pd.map((d) => (
+                  <span key={d.id} className="cl-doc">
+                    <button className="cl-doc-open" onClick={() => openClubFile(d.file)}>📎 {d.category} — {d.name}</button>
+                    <button className="cl-doc-del" onClick={() => del(d)} aria-label="Supprimer">✕</button>
+                  </span>
+                ))}
+            </div>
+            <div className="cl-doc-add">
+              <select className="esp-input" value={cat[p.id] || "Licence"} onChange={(e) => setCat({ ...cat, [p.id]: e.target.value })} style={{ maxWidth: 180 }}>
+                {DOC_CATS.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <label className="btn btn--ghost btn--sm">{busy === p.id ? "Envoi…" : "📎 Ajouter"}
+                <input type="file" hidden disabled={busy === p.id} onChange={(e) => { const file = e.target.files?.[0]; if (file) upload(p, file); e.target.value = ""; }} />
+              </label>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ================================================================
+   MESSAGERIE PAR CATÉGORIE
+   ================================================================ */
+function ClubMessagerie({ channels, meId, profiles }: { channels: Team[]; meId: string; profiles: Record<string, string> }) {
+  const [sel, setSel] = useState<string>(channels[0]?.id || "");
+  const [msgs, setMsgs] = useState<CMsg[]>([]);
+  const [text, setText] = useState("");
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const chan = channels.find((c) => c.id === sel);
+
+  useEffect(() => {
+    if (!supabase || !sel) return;
+    let live = true;
+    (async () => { const r = await supabase!.from("club_messages").select("*").eq("team_id", sel).order("created_at").limit(500); if (live) setMsgs((r.data as CMsg[]) || []); })();
+    const rt = supabase.channel("cmsg:" + sel).on("postgres_changes", { event: "INSERT", schema: "public", table: "club_messages", filter: `team_id=eq.${sel}` }, (payload) => {
+      const m = payload.new as CMsg; setMsgs((p) => p.some((x) => x.id === m.id) ? p : [...p, m]);
+    }).subscribe();
+    return () => { live = false; supabase!.removeChannel(rt); };
+  }, [sel]);
+  useEffect(() => { const el = scrollRef.current; if (el) el.scrollTop = el.scrollHeight; }, [msgs]);
+
+  async function send(e: React.FormEvent) {
+    e.preventDefault(); if (!supabase || !sel || !text.trim()) return;
+    const body = text.trim(); setText("");
+    const { data } = await supabase.from("club_messages").insert({ team_id: sel, body }).select().single();
+    if (data) { const m = data as CMsg; setMsgs((p) => p.some((x) => x.id === m.id) ? p : [...p, m]); }
+  }
+  if (channels.length === 0) return <div className="esp-card esp-center"><p className="muted">Aucune catégorie accessible pour la messagerie.</p></div>;
+  return (
+    <div className="cl-msgr">
+      <aside className="cl-msgr-side">
+        {channels.map((c) => <button key={c.id} className={"cl-msgr-chan" + (c.id === sel ? " on" : "")} onClick={() => setSel(c.id)}># {c.name}</button>)}
+      </aside>
+      <section className="cl-msgr-main">
+        <div className="cl-msgr-title"># {chan?.name || ""}</div>
+        <div className="cl-msgr-scroll" ref={scrollRef}>
+          {msgs.length === 0 ? <p className="muted">Aucun message. Lance la discussion !</p> :
+            msgs.map((m) => {
+              const mine = m.sender === meId;
+              return (
+                <div key={m.id} className={"cl-msg" + (mine ? " mine" : "")}>
+                  {!mine && <div className="cl-msg-who">{profiles[m.sender] || "—"}</div>}
+                  <div className="cl-msg-bubble">{m.body}</div>
+                  <div className="cl-msg-time">{new Date(m.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</div>
+                </div>
+              );
+            })}
+        </div>
+        <form className="cl-msgr-input" onSubmit={send}>
+          <input className="esp-input" placeholder="Écris un message…" value={text} onChange={(e) => setText(e.target.value)} />
+          <button className="btn btn--sm" type="submit" disabled={!text.trim()}>Envoyer</button>
+        </form>
+      </section>
+    </div>
+  );
+}
+
+/* ================================================================
    ESPACE D'UN CLUB (membre actif)
    ================================================================ */
 function ClubSpace({ membership, meId, onLeaveClub }: { membership: Membership; meId: string; onLeaveClub: () => void }) {
@@ -398,6 +526,7 @@ function ClubSpace({ membership, meId, onLeaveClub }: { membership: Membership; 
   const [guardians, setGuardians] = useState<Guardian[]>([]);
   const [events, setEvents] = useState<CEvent[]>([]);
   const [attendance, setAttendance] = useState<Attend[]>([]);
+  const [docs, setDocs] = useState<CDoc[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("dashboard");
@@ -417,13 +546,15 @@ function ClubSpace({ membership, meId, onLeaveClub }: { membership: Membership; 
     setEvents((ev.data as CEvent[]) || []);
     setAttendance((at.data as Attend[]) || []);
     const teamIds = tt.map((x) => x.id);
-    const [st, gu, pr] = await Promise.all([
+    const [st, gu, pr, dc] = await Promise.all([
       teamIds.length ? supabase.from("team_staff").select("*").in("team_id", teamIds) : Promise.resolve({ data: [] }),
       supabase.from("guardians").select("*"),
       supabase.from("profiles").select("id,pseudo"),
+      supabase.from("club_documents").select("*").eq("club_id", club.id),
     ]);
     setStaff((st.data as { team_id: string; user_id: string }[]) || []);
     setGuardians((gu.data as Guardian[]) || []);
+    setDocs((dc.data as CDoc[]) || []);
     const pm: Record<string, string> = {};
     for (const x of (pr.data as { id: string; pseudo: string }[]) || []) pm[x.id] = x.pseudo || "—";
     setProfiles(pm);
@@ -431,10 +562,14 @@ function ClubSpace({ membership, meId, onLeaveClub }: { membership: Membership; 
   }, [club.id]);
   useEffect(() => { load(); }, [load]);
 
-  const TABS = isAdmin ? [["dashboard", "Tableau de bord"], ["effectifs", "Effectifs"], ["convocations", "Convocations"], ["membres", "Membres"]]
-    : role === "educateur" ? [["dashboard", "Tableau de bord"], ["effectifs", "Effectifs"], ["convocations", "Convocations"]]
-      : role === "parent" ? [["dashboard", "Tableau de bord"], ["convocations", "Convocations"], ["enfants", "Mes enfants"]]
+  const TABS = isAdmin ? [["dashboard", "Tableau de bord"], ["effectifs", "Effectifs"], ["convocations", "Convocations"], ["messagerie", "Messagerie"], ["documents", "Documents"], ["membres", "Membres"]]
+    : role === "educateur" ? [["dashboard", "Tableau de bord"], ["effectifs", "Effectifs"], ["convocations", "Convocations"], ["messagerie", "Messagerie"], ["documents", "Documents"]]
+      : role === "parent" ? [["dashboard", "Tableau de bord"], ["convocations", "Convocations"], ["messagerie", "Messagerie"], ["documents", "Documents"], ["enfants", "Mes enfants"]]
         : [["dashboard", "Tableau de bord"]];
+  const channels = isAdmin ? teams
+    : role === "educateur" ? teams.filter((t) => staff.some((s) => s.team_id === t.id && s.user_id === meId))
+      : role === "parent" ? teams.filter((t) => players.some((p) => p.team_id === t.id))
+        : [];
 
   return (
     <>
@@ -453,6 +588,8 @@ function ClubSpace({ membership, meId, onLeaveClub }: { membership: Membership; 
           )}
           {tab === "effectifs" && <Effectifs club={club} role={role} teams={teams} players={players} members={members} staff={staff} guardians={guardians} profiles={profiles} reload={load} />}
           {tab === "convocations" && <Convocations club={club} role={role} teams={teams} players={players} events={events} attendance={attendance} meId={meId} reload={load} />}
+          {tab === "messagerie" && <ClubMessagerie channels={channels} meId={meId} profiles={profiles} />}
+          {tab === "documents" && <Documents club={club} teams={teams} players={players} docs={docs} reload={load} />}
           {tab === "membres" && isAdmin && <Membres club={club} members={members} profiles={profiles} reload={load} />}
           {tab === "enfants" && <MesEnfants players={players} teams={teams} />}
         </>

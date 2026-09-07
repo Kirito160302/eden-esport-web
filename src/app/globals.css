@@ -1541,3 +1541,31 @@ textarea.esp-input{min-height:64px;resize:vertical}
 .cl-att-btn.on.cl-att-absent{background:rgba(180,60,60,.28);color:#e88a8a;border-color:transparent}
 .cl-att-btn.on.cl-att-peutetre{background:rgba(246,201,92,.22);color:#f6c95c;border-color:transparent}
 .cl-att-btn:disabled{opacity:.5;cursor:default}
+
+/* ---- Espace club : documents ---- */
+.cl-docs{display:flex;flex-wrap:wrap;gap:.5rem;margin:.6rem 0}
+.cl-doc{display:inline-flex;align-items:center;gap:.3rem;background:var(--surface-2);border:1px solid var(--line-2);border-radius:8px;padding:.2rem .4rem;font-size:.82rem}
+.cl-doc-open{background:none;border:none;color:var(--text);cursor:pointer;font:inherit;font-size:.82rem}
+.cl-doc-open:hover{color:var(--lavender)}
+.cl-doc-del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:.72rem}
+.cl-doc-add{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+.cl-doc-add .btn{cursor:pointer}
+
+/* ---- Espace club : messagerie ---- */
+.cl-msgr{display:grid;grid-template-columns:200px 1fr;gap:1rem;height:64vh;min-height:420px;margin-top:1rem}
+.cl-msgr-side{background:var(--surface);border:1px solid var(--line-2);border-radius:12px;padding:.5rem;overflow-y:auto;display:flex;flex-direction:column;gap:.2rem}
+.cl-msgr-chan{text-align:left;border:none;background:transparent;color:var(--muted);padding:.5rem .6rem;border-radius:8px;cursor:pointer;font:inherit;font-size:.88rem}
+.cl-msgr-chan:hover{background:var(--surface-2);color:var(--text)}
+.cl-msgr-chan.on{background:var(--violet);color:#fff}
+.cl-msgr-main{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line-2);border-radius:12px;overflow:hidden;min-width:0}
+.cl-msgr-title{padding:.8rem 1rem;border-bottom:1px solid var(--line-2);font-weight:700}
+.cl-msgr-scroll{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.5rem}
+.cl-msg{display:flex;flex-direction:column;align-items:flex-start;max-width:78%}
+.cl-msg.mine{align-self:flex-end;align-items:flex-end}
+.cl-msg-who{font-size:.72rem;color:var(--muted);margin:0 0 .1rem .3rem}
+.cl-msg-bubble{background:var(--surface-2);border:1px solid var(--line-2);padding:.5rem .75rem;border-radius:12px;border-bottom-left-radius:4px;font-size:.9rem;white-space:pre-wrap;word-break:break-word}
+.cl-msg.mine .cl-msg-bubble{background:var(--violet);border-color:transparent;color:#fff;border-bottom-left-radius:12px;border-bottom-right-radius:4px}
+.cl-msg-time{font-size:.68rem;color:var(--muted);margin:.1rem .3rem 0}
+.cl-msgr-input{display:flex;gap:.5rem;padding:.7rem;border-top:1px solid var(--line-2)}
+.cl-msgr-input .esp-input{flex:1}
+@media(max-width:760px){ .cl-msgr{grid-template-columns:1fr;height:auto} .cl-msgr-side{flex-direction:row;overflow-x:auto} .cl-msgr-main{height:56vh} }
