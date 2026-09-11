@@ -73,4 +73,14 @@ export const ESPORT: EGame[] = [
       // À compléter : { title: "Eden vs Adversaire — UTT Arena", youtube: "ID_ou_URL_YouTube" }
     ],
   },
+  {
+    key: "tft",
+    label: "Teamfight Tactics",
+    palmares: [],
+    roster: [
+      // Effectif rempli automatiquement depuis WordPress (joueurs dont le jeu = Teamfight Tactics)
+    ],
+    calendar: [],
+    replays: [],
+  },
 ];
