@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getTeams, filterOptions } from "@/lib/content";
 import { PageHero } from "@/components/ui";
-import { TeamCard, SoonCard } from "@/components/cards";
+import { TeamCard } from "@/components/cards";
 import Filterable from "@/components/Filterable";
 
 export const metadata: Metadata = { title: "Nos équipes" };
@@ -9,10 +9,7 @@ export const metadata: Metadata = { title: "Nos équipes" };
 export default async function EquipesPage() {
   const teams = await getTeams();
   const options = filterOptions(teams.map((t) => [t.gameKey, t.game || t.gameKey]), "Toutes");
-  const items = [
-    ...teams.map((t) => ({ cat: t.gameKey, node: <TeamCard key={t.slug} team={t} /> })),
-    { cat: "soon", node: <SoonCard key="soon" /> },
-  ];
+  const items = teams.map((t) => ({ cat: t.gameKey, node: <TeamCard key={t.slug} team={t} /> }));
   return (
     <>
       <PageHero

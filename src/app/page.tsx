@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getTeams, getArticles, getPartners, getProducts } from "@/lib/content";
-import { TeamCard, SoonCard, NewsCard } from "@/components/cards";
+import { TeamCard, NewsCard } from "@/components/cards";
 import HomeEffects from "@/components/HomeEffects";
 import PartnerLogo from "@/components/PartnerLogo";
 
@@ -96,7 +96,6 @@ export default async function Home() {
           </div>
           <div className="teams-grid">
             {teams.map((t) => <TeamCard key={t.slug} team={t} href="/esport" />)}
-            <SoonCard />
           </div>
         </div>
       </section>
