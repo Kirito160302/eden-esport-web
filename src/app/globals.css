@@ -1615,3 +1615,6 @@ textarea.esp-input{min-height:64px;resize:vertical}
 
 /* Événements : description tronquée dans la liste (complète sur la page détail) */
 .event-desc{display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+/* Carte joueur : photo (image mise en avant WordPress) qui remplit l'avatar */
+.player-avatar .pc-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top center}

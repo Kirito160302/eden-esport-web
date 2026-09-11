@@ -61,7 +61,10 @@ export function SoonCard() {
 export function PlayerCard({ player }: { player: Player }) {
   return (
     <Link className="player-card" data-cat={player.gameKey} href={`/joueurs/${player.slug}`}>
-      <div className="player-avatar"><span className="ini">{player.initials}</span><span className="tag role">{player.role}</span></div>
+      <div className="player-avatar">
+        {player.photo ? <img className="pc-photo" src={player.photo} alt={player.pseudo} loading="lazy" /> : <span className="ini">{player.initials}</span>}
+        <span className="tag role">{player.role}</span>
+      </div>
       <div className="pc-body"><div className="pseudo">{player.pseudo}</div><div className="name">{player.teamName}</div><div className="game">{player.game}</div></div>
     </Link>
   );
