@@ -219,28 +219,33 @@ export async function wpEvents(): Promise<Event[] | null> {
 export async function wpProducts(): Promise<ShopProduct[] | null> {
   // Requête résiliente : tente d'abord AVEC la galerie ACF ; si le champ "galerie"
   // n'existe pas encore côté WordPress (erreur GraphQL → null), on retente SANS.
-  const build = (withGallery: boolean) => `
+  // Requête résiliente : tente avec les images supplémentaires (champs ACF Image
+  // "galerie", "image3", "image4") ; si aucun n'existe encore, retente sans.
+  const EXTRA = " galerie { node { sourceUrl } } image3 { node { sourceUrl } } image4 { node { sourceUrl } }";
+  const build = (extra: string) => `
     query Products {
       products(first: 100) {
         nodes {
           slug title
           featuredImage { node { sourceUrl } }
-          productFields { category price ancienPrix sizes description badge epuise lienNoltDuProduit imageKind${withGallery ? " galerie { nodes { sourceUrl } }" : ""} }
+          productFields { category price ancienPrix sizes description badge epuise lienNoltDuProduit imageKind${extra} }
         }
       }
     }`;
-  let data = await gql<{ products: { nodes: any[] } }>(build(true));
-  if (!data?.products?.nodes) data = await gql<{ products: { nodes: any[] } }>(build(false));
+  let data = await gql<{ products: { nodes: any[] } }>(build(EXTRA));
+  if (!data?.products?.nodes) data = await gql<{ products: { nodes: any[] } }>(build(" galerie { node { sourceUrl } }"));
+  if (!data?.products?.nodes) data = await gql<{ products: { nodes: any[] } }>(build(""));
   if (!data?.products?.nodes) return null;
   const num = (v: any) => parseFloat(String(v ?? "").replace(",", ".")) || 0;
+  const src = (x: any) => (x?.node?.sourceUrl as string) || "";
   return data.products.nodes.map((n) => {
     const f = n.productFields || {};
     const sizes = csv(f.sizes);
     const old = num(f.ancienPrix);
-    // vraie photo (image mise en avant) + galerie ACF éventuelle
+    // image mise en avant + images ACF supplémentaires (galerie, image3, image4)
     const photo = n.featuredImage?.node?.sourceUrl;
-    const gallery: string[] = ((f.galerie?.nodes as { sourceUrl?: string }[]) || []).map((g) => g.sourceUrl || "").filter(Boolean);
-    const imgs = [photo, ...gallery].filter(Boolean) as string[];
+    const extras = [src(f.galerie), src(f.image3), src(f.image4)].filter(Boolean);
+    const imgs = [photo, ...extras].filter(Boolean) as string[];
     return {
       slug: n.slug,
       name: n.title,
