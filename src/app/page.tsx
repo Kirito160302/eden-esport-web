@@ -15,9 +15,13 @@ const ACTIONS: [string, string][] = [
 
 export default async function Home() {
   const [teams, news, partners, products] = await Promise.all([getTeams(), getArticles("news"), getPartners(), getProducts()]);
-  // produit mis en avant : un maillot en priorité, sinon le 1er produit
-  const feat = products.find((p) => p.category === "maillots") ?? products[0];
-  const featImg = !feat ? "/jersey.jpg" : feat.image === "jersey" ? "/jersey.jpg" : feat.image === "symbol" ? "/symbol.png" : feat.image;
+  // produit mis en avant : on privilégie un produit qui a une VRAIE photo
+  // (pas le logo « symbol »), maillot en priorité, pour ne jamais afficher un visuel vide.
+  const hasPhoto = (p?: (typeof products)[number]) => !!p && !!p.image && p.image !== "symbol";
+  const resolveImg = (p?: (typeof products)[number]) => (!p ? "/jersey.jpg" : p.image === "jersey" ? "/jersey.jpg" : p.image === "symbol" ? "/jersey.jpg" : p.image);
+  const withPhoto = products.filter(hasPhoto);
+  const feat = withPhoto.find((p) => p.category === "maillots") ?? withPhoto[0] ?? products.find((p) => p.category === "maillots") ?? products[0];
+  const featImg = resolveImg(feat);
 
   return (
     <>
