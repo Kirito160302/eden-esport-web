@@ -1628,3 +1628,9 @@ textarea.esp-input{min-height:64px;resize:vertical}
 .rp-media{position:relative}
 .rp-media .role{z-index:2;background:rgba(6,6,11,.72);color:#fff;border:1px solid rgba(184,156,255,.45);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 .rp-media::after{content:"";position:absolute;inset:auto 0 0 0;height:38%;background:linear-gradient(transparent,rgba(6,6,11,.55));pointer-events:none;z-index:1}
+
+/* Accueil — visuel « héritage » en vraie photo (au lieu du logo flottant) */
+.essence-visual--photo{overflow:hidden;border-radius:14px;background:#0b0b12}
+.essence-visual--photo::before{display:none}
+.essence-visual--photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:72% 22%;filter:none;animation:none;z-index:1}
+.essence-visual--photo::after{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;background:linear-gradient(180deg,transparent 62%,rgba(11,11,18,.35));box-shadow:inset 0 0 45px rgba(125,92,255,.1)}

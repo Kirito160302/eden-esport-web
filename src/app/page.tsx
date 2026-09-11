@@ -83,9 +83,8 @@ export default async function Home() {
               <span>Passion</span><span>Dépassement</span><span>Stratégie</span><span>Respect</span><span>Unité</span>
             </div>
           </div>
-          <div className="essence-visual reveal d2" aria-hidden="true">
-            <span className="ring"></span><span className="ring r2"></span>
-            <img src="/symbol.png" alt="" />
+          <div className="essence-visual essence-visual--photo reveal d2">
+            <img src="/aventure.jpg" alt="L'équipe Eden Esport lors d'un événement" />
           </div>
         </div>
       </section>
