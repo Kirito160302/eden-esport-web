@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function ClubPage() {
   return (
-    <section className="section" style={{ paddingTop: "6rem" }}>
+    <section className="section" data-theme="dark" style={{ paddingTop: "6rem" }}>
       <div className="wrap"><Club /></div>
     </section>
   );

@@ -1579,3 +1579,36 @@ textarea.esp-input{min-height:64px;resize:vertical}
 .pm-thumb.on{border-color:var(--lavender);box-shadow:0 0 0 1px var(--lavender)}
 .pm-thumb img{width:100%;height:100%;object-fit:cover}
 .pm-thumb .pm-symbol{object-fit:contain;padding:8px}
+
+/* =====================================================================
+   THÈME CLAIR (site public) — surcharge des variables. Dark = défaut.
+   Les espaces internes sont verrouillés en sombre via [data-theme="dark"].
+   ===================================================================== */
+:root[data-theme="light"]{
+  --bg:#F7F6FC; --bg-2:#F0EEF8; --bg-3:#E9E7F3;
+  --surface:#FFFFFF; --surface-2:#F4F2FB; --surface-3:#ECE9F7;
+  --line:rgba(90,60,190,.14); --line-2:rgba(90,60,190,.22); --line-3:rgba(90,60,190,.34);
+  --lavender:#6A48E0;
+  --text:#141221; --muted:#565270; --muted-2:#8B8799;
+  --glow:0 0 30px rgba(125,92,255,.16); --glow-soft:0 0 50px rgba(125,92,255,.10);
+  --shadow:0 24px 60px -30px rgba(40,30,90,.28);
+}
+/* Ré-affirme le sombre pour tout sous-arbre marqué data-theme="dark" (espaces internes) */
+[data-theme="dark"]{
+  --bg:#06060B; --bg-2:#090910; --bg-3:#0C0C15;
+  --surface:#101019; --surface-2:#15151F; --surface-3:#1B1B27;
+  --line:rgba(184,156,255,.12); --line-2:rgba(184,156,255,.20); --line-3:rgba(184,156,255,.32);
+  --lavender:#B89CFF;
+  --text:#F2F2FF; --muted:#A7A3BE; --muted-2:#6E6A85;
+  --glow:0 0 40px rgba(125,92,255,.30); --glow-soft:0 0 60px rgba(125,92,255,.18);
+  --shadow:0 30px 80px -30px rgba(0,0,0,.85);
+}
+[data-theme="dark"]{background:var(--bg);color:var(--text)}
+/* Zones à fond sombre codé en dur → équivalents clairs */
+:root[data-theme="light"] .header.scrolled{background:rgba(255,255,255,.78);border-color:var(--line)}
+:root[data-theme="light"] .mobile-menu{background:rgba(247,246,252,.98)}
+:root[data-theme="light"] .modal-backdrop{background:rgba(20,15,40,.35)}
+/* Bouton bascule thème */
+.theme-toggle{width:40px;height:40px;flex:none;display:grid;place-items:center;border:1px solid var(--line-2);background:transparent;color:var(--text);border-radius:var(--r);cursor:pointer;transition:border-color .3s,color .3s,background .3s}
+.theme-toggle:hover{border-color:var(--lavender);color:var(--lavender);background:rgba(125,92,255,.06)}
+.theme-toggle svg{width:18px;height:18px}

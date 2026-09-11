@@ -5,6 +5,25 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CartBadge } from "./shop";
 
+function ThemeToggle() {
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  useEffect(() => { setTheme(document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark"); }, []);
+  function toggle() {
+    const next = theme === "light" ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", next);
+    try { localStorage.setItem("eden-theme", next); } catch { /* ignore */ }
+    setTheme(next);
+  }
+  return (
+    <button className="theme-toggle" onClick={toggle} title="Mode clair / sombre"
+      aria-label={theme === "light" ? "Passer en mode sombre" : "Passer en mode clair"}>
+      {theme === "light"
+        ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7}><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" /></svg>
+        : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7}><circle cx="12" cy="12" r="4.2" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19" /></svg>}
+    </button>
+  );
+}
+
 type Child = { label: string; href: string; desc?: string };
 type Item = { label: string; href: string; children?: Child[] };
 
@@ -63,6 +82,7 @@ export default function Header() {
   const [open, setOpen] = useState(false);
   const [openSub, setOpenSub] = useState<string | null>(null);
   const active = activeHref(pathname);
+  const internal = /^\/(espace|bureau|club)/.test(pathname);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -80,7 +100,7 @@ export default function Header() {
 
   return (
     <>
-      <header className={"header" + (scrolled ? " scrolled" : "")}>
+      <header className={"header" + (scrolled ? " scrolled" : "")} data-theme={internal ? "dark" : undefined}>
         <div className="wrap">
           <Link href="/" className="brand" title="Eden Esport — accueil">
             <img src="/symbol.png" alt="" width={38} height={38} aria-hidden="true" />
@@ -111,6 +131,7 @@ export default function Header() {
           </nav>
 
           <div className="header-cta">
+            {!internal && <ThemeToggle />}
             <CartBadge />
             <Link href="/rejoindre" className="btn btn--sm">Rejoindre Eden<span className="arw">→</span></Link>
             <button className="burger" aria-label="Ouvrir le menu" aria-expanded={open}

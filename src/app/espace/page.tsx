@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function EspacePage() {
   return (
-    <>
+    <div data-theme="dark">
       <PageHero
         crumbs={[{ label: "Accueil", href: "/" }, { label: "Espace équipe" }]}
         eyebrow="Interne" title="Espace équipe"
@@ -18,6 +18,6 @@ export default function EspacePage() {
       <section className="section"><div className="wrap esp-wrap">
         <Espace />
       </div></section>
-    </>
+    </div>
   );
 }
