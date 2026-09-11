@@ -163,7 +163,7 @@ export function EventCard({ event }: { event: Event }) {
         </span>
         <h3>{event.title}</h3>
         <p className="where">{event.date} · {event.place}</p>
-        <p>{event.description}</p>
+        <p className="event-desc">{event.description}</p>
         <span className="discover" style={{ fontFamily: "var(--f-display)", fontSize: ".74rem", fontWeight: 600, letterSpacing: ".16em", textTransform: "uppercase", color: "var(--lavender)" }}>Voir l&apos;événement →</span>
       </div>
     </Link>

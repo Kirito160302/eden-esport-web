@@ -39,6 +39,7 @@ export type Event = {
   tag: string;
   description: string;
   program: { time: string; label: string }[];
+  ticketing?: boolean;      // billetterie activée ? (false = entrée gratuite ; undefined = comportement hérité)
   ticketUrl?: string;       // lien billetterie (laisser vide = "à venir")
   hotels?: { name: string; url: string }[];
   restaurants?: { name: string; url: string }[];

@@ -181,18 +181,22 @@ export async function wpPlayers(): Promise<Player[] | null> {
 
 /* =============================== ÉVÉNEMENTS =============================== */
 export async function wpEvents(): Promise<Event[] | null> {
-  const data = await gql<{ events: { nodes: any[] } }>(`
+  // Requête résiliente : tente avec le champ "billeterie" (True/False ACF) ;
+  // s'il n'existe pas encore, retente sans (comportement hérité).
+  const build = (extra: string) => `
     query Events {
       events(first: 50) {
         nodes {
           slug title
           eventFields {
             eventDate dateIso place adresse categorie eventStatus tag description
-            program lienBilleterie hotels restaurants
+            program lienBilleterie hotels restaurants${extra}
           }
         }
       }
-    }`);
+    }`;
+  let data = await gql<{ events: { nodes: any[] } }>(build(" billeterie"));
+  if (!data?.events?.nodes) data = await gql<{ events: { nodes: any[] } }>(build(""));
   if (!data?.events?.nodes) return null;
   return data.events.nodes.map((n) => {
     const f = n.eventFields || {};
@@ -208,6 +212,7 @@ export async function wpEvents(): Promise<Event[] | null> {
       tag: f.tag || "",
       description: f.description || "",
       program: parsePairs(f.program),
+      ticketing: typeof f.billeterie === "boolean" ? f.billeterie : undefined,
       ticketUrl: f.lienBilleterie || undefined,
       hotels: f.hotels ? parseLinks(f.hotels) : undefined,
       restaurants: f.restaurants ? parseLinks(f.restaurants) : undefined,

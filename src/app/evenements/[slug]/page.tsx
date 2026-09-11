@@ -51,9 +51,11 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
             <h3>Informations pratiques</h3>
             <p style={{ margin: ".6rem 0" }}><strong style={{ color: "var(--text)" }}>Date :</strong> {e.date}</p>
             <p style={{ margin: ".6rem 0" }}><strong style={{ color: "var(--text)" }}>Lieu :</strong> {e.place}{e.address && e.address !== e.place ? ` — ${e.address}` : ""}</p>
-            <p style={{ margin: ".6rem 0" }}><strong style={{ color: "var(--text)" }}>Entrée :</strong> {e.ticketUrl ? "Billetterie ouverte" : "à préciser"}</p>
-            {/* BILLETTERIE (prête pour plus tard) */}
-            {e.ticketUrl ? (
+            <p style={{ margin: ".6rem 0" }}><strong style={{ color: "var(--text)" }}>Entrée :</strong> {e.ticketing === false ? "Gratuite" : (e.ticketUrl ? "Billetterie ouverte" : "à préciser")}</p>
+            {/* BILLETTERIE — activable/désactivable par événement */}
+            {e.ticketing === false ? (
+              <span className="tag tag--live" style={{ marginTop: ".6rem", display: "inline-flex" }}><span className="dot"></span>Entrée gratuite</span>
+            ) : e.ticketUrl ? (
               <a href={e.ticketUrl} target="_blank" rel="noopener noreferrer" className="btn btn--gold" style={{ marginTop: ".6rem" }}>Réserver ma place<span className="arw">→</span></a>
             ) : (
               <span className="btn btn--ghost btn--sm" style={{ marginTop: ".6rem", opacity: 0.7, cursor: "default" }}>Billetterie à venir</span>
