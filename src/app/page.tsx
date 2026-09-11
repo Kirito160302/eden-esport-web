@@ -1,17 +1,8 @@
 import Link from "next/link";
-import { getTeams, getArticles, getEvents, getPartners, getProducts } from "@/lib/content";
+import { getTeams, getArticles, getPartners, getProducts } from "@/lib/content";
 import { TeamCard, SoonCard, NewsCard } from "@/components/cards";
 import HomeEffects from "@/components/HomeEffects";
 import PartnerLogo from "@/components/PartnerLogo";
-
-// Tronque un texte à la longueur n, sur une frontière de mot, avec « … »
-const clip = (s: string, n = 170): string => {
-  const t = (s || "").trim();
-  if (t.length <= n) return t;
-  const cut = t.slice(0, n);
-  const sp = cut.lastIndexOf(" ");
-  return (sp > 40 ? cut.slice(0, sp) : cut).replace(/[.,;:!?\s]+$/, "") + "…";
-};
 
 const ACTIONS: [string, string][] = [
   ["Compétition", "Des équipes exigeantes qui portent les couleurs d'Eden sur les scènes esport."],
@@ -23,8 +14,7 @@ const ACTIONS: [string, string][] = [
 ];
 
 export default async function Home() {
-  const [teams, news, events, partners, products] = await Promise.all([getTeams(), getArticles("news"), getEvents(), getPartners(), getProducts()]);
-  const evt = events.find((e) => e.status === "upcoming") ?? events[0];
+  const [teams, news, partners, products] = await Promise.all([getTeams(), getArticles("news"), getPartners(), getProducts()]);
   // produit mis en avant : un maillot en priorité, sinon le 1er produit
   const feat = products.find((p) => p.category === "maillots") ?? products[0];
   const featImg = !feat ? "/jersey.jpg" : feat.image === "jersey" ? "/jersey.jpg" : feat.image === "symbol" ? "/symbol.png" : feat.image;
@@ -110,37 +100,6 @@ export default async function Home() {
           </div>
         </div>
       </section>
-
-      {/* ÉVÉNEMENT */}
-      {evt && (
-        <section className="section event" aria-label="Prochain événement">
-          <div className="wrap">
-            <div className="section-head reveal">
-              <p className="eyebrow eyebrow--gold">Prochain rendez-vous</p>
-              <h2 style={{ fontSize: "var(--fs-h2)" }}>Un événement en préparation</h2>
-            </div>
-            <div className="event-card reveal d1">
-              <div className="event-media" aria-hidden="true"><img src="/symbol.png" alt="" /></div>
-              <div className="event-body">
-                <span className="tag tag--live"><span className="dot"></span>{evt.tag}</span>
-                <h3>{evt.title}</h3>
-                <p className="where">{evt.date} · {evt.place}</p>
-                <p>{clip(evt.description, 180)}</p>
-                <div className="countdown" aria-label="Compte à rebours avant l'événement">
-                  <div className="cd-unit"><span className="v" data-cd="d">00</span><span className="u">Jours</span></div>
-                  <div className="cd-unit"><span className="v" data-cd="h">00</span><span className="u">Heures</span></div>
-                  <div className="cd-unit"><span className="v" data-cd="m">00</span><span className="u">Min</span></div>
-                  <div className="cd-unit"><span className="v" data-cd="s">00</span><span className="u">Sec</span></div>
-                </div>
-                <div style={{ marginTop: "1.4rem", display: "flex", gap: ".8rem", flexWrap: "wrap" }}>
-                  <Link href={`/evenements/${evt.slug}`} className="btn btn--sm">Voir l&apos;événement<span className="arw">→</span></Link>
-                  <Link href="/evenements" className="btn btn--ghost btn--sm">Tous les événements</Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* ACTUALITÉS */}
       <section className="section" aria-label="Actualités">

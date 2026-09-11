@@ -278,6 +278,7 @@ main section,.finale{scroll-margin-top:90px}
 .team-card.valorant::before{background:radial-gradient(circle at 70% 20%,rgba(255,70,85,.5),transparent 55%),linear-gradient(160deg,#2a0d18,#0b0b12)}
 .team-card.lol::before{background:radial-gradient(circle at 70% 20%,rgba(90,140,255,.45),transparent 55%),linear-gradient(160deg,#0d1830,#0b0b12)}
 .team-card.soon::before{background:radial-gradient(circle at 50% 30%,rgba(125,92,255,.28),transparent 55%),linear-gradient(160deg,#161027,#0b0b12)}
+.team-card.tft::before{background:linear-gradient(160deg,rgba(11,11,18,.30),rgba(11,11,18,.55) 55%,rgba(11,11,18,.9)),url(/teams/tft.jpg) center/cover no-repeat}
 .team-card:hover{transform:translateY(-8px);border-color:var(--line-3)}
 .team-card:hover::before{transform:scale(1.08)}
 .team-card .game{font-family:var(--f-display);font-size:.7rem;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:var(--lavender)}

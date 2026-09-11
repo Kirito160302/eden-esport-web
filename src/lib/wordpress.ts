@@ -76,6 +76,7 @@ export function slugifyGame(game: string): string {
   const g = (game || "").toLowerCase();
   if (g.includes("valorant")) return "valorant";
   if (g.includes("league") || g.trim() === "lol") return "lol";
+  if (g.includes("teamfight") || g.trim() === "tft") return "tft";
   return g.replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "autre";
 }
 
