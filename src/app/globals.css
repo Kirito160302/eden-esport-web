@@ -1569,3 +1569,13 @@ textarea.esp-input{min-height:64px;resize:vertical}
 .cl-msgr-input{display:flex;gap:.5rem;padding:.7rem;border-top:1px solid var(--line-2)}
 .cl-msgr-input .esp-input{flex:1}
 @media(max-width:760px){ .cl-msgr{grid-template-columns:1fr;height:auto} .cl-msgr-side{flex-direction:row;overflow-x:auto} .cl-msgr-main{height:56vh} }
+
+/* ---- Boutique : galerie produit (plusieurs images) ---- */
+.pm-gallery{display:flex;flex-direction:column;gap:.7rem}
+.pm-gallery-main{position:relative}
+.pm-thumbs{display:flex;gap:.5rem;flex-wrap:wrap}
+.pm-thumb{width:66px;height:66px;border:1px solid var(--line-2);border-radius:10px;overflow:hidden;cursor:pointer;background:var(--surface);padding:0;display:grid;place-items:center;transition:border-color .2s}
+.pm-thumb:hover{border-color:var(--lavender)}
+.pm-thumb.on{border-color:var(--lavender);box-shadow:0 0 0 1px var(--lavender)}
+.pm-thumb img{width:100%;height:100%;object-fit:cover}
+.pm-thumb .pm-symbol{object-fit:contain;padding:8px}

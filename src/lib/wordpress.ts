@@ -217,31 +217,38 @@ export async function wpEvents(): Promise<Event[] | null> {
 
 /* =============================== BOUTIQUE (produits) =============================== */
 export async function wpProducts(): Promise<ShopProduct[] | null> {
-  const data = await gql<{ products: { nodes: any[] } }>(`
+  // Requête résiliente : tente d'abord AVEC la galerie ACF ; si le champ "galerie"
+  // n'existe pas encore côté WordPress (erreur GraphQL → null), on retente SANS.
+  const build = (withGallery: boolean) => `
     query Products {
       products(first: 100) {
         nodes {
           slug title
           featuredImage { node { sourceUrl } }
-          productFields { category price ancienPrix sizes description badge epuise lienNoltDuProduit imageKind }
+          productFields { category price ancienPrix sizes description badge epuise lienNoltDuProduit imageKind${withGallery ? " galerie { nodes { sourceUrl } }" : ""} }
         }
       }
-    }`);
+    }`;
+  let data = await gql<{ products: { nodes: any[] } }>(build(true));
+  if (!data?.products?.nodes) data = await gql<{ products: { nodes: any[] } }>(build(false));
   if (!data?.products?.nodes) return null;
   const num = (v: any) => parseFloat(String(v ?? "").replace(",", ".")) || 0;
   return data.products.nodes.map((n) => {
     const f = n.productFields || {};
     const sizes = csv(f.sizes);
     const old = num(f.ancienPrix);
-    // vraie photo (image mise en avant) en priorité, sinon maillot/symbole
+    // vraie photo (image mise en avant) + galerie ACF éventuelle
     const photo = n.featuredImage?.node?.sourceUrl;
+    const gallery: string[] = ((f.galerie?.nodes as { sourceUrl?: string }[]) || []).map((g) => g.sourceUrl || "").filter(Boolean);
+    const imgs = [photo, ...gallery].filter(Boolean) as string[];
     return {
       slug: n.slug,
       name: n.title,
       category: one(f.category) || "accessoires",
       price: num(f.price),
       oldPrice: old > 0 ? old : undefined,
-      image: photo || (one(f.imageKind) === "jersey" ? "jersey" : "symbol"),
+      image: imgs[0] || (one(f.imageKind) === "jersey" ? "jersey" : "symbol"),
+      images: imgs.length > 1 ? imgs : undefined,
       sizes: sizes.length ? sizes : ["Unique"],
       description: f.description || "",
       badge: f.badge || undefined,

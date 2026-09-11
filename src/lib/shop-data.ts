@@ -34,6 +34,7 @@ export type ShopProduct = {
   price: number;           // en € (pour le calcul du panier)
   oldPrice?: number;       // prix barré (promo) — optionnel
   image: string;           // "jersey" | "symbol" | "/chemin/vers/image.jpg"
+  images?: string[];       // galerie (plusieurs photos) — la 1re = image principale
   sizes: string[];
   description: string;
   badge?: string;          // "Nouveau", "Édition limitée"... — optionnel

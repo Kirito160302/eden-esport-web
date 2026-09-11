@@ -12,6 +12,26 @@ export function ProductMedia({ image, alt }: { image: string; alt?: string }) {
   return <img className="pm-photo" src={image} alt={alt || ""} />;
 }
 
+/* ---- galerie produit (plusieurs images) ---- */
+export function ProductGallery({ images, alt }: { images: string[]; alt?: string }) {
+  const [i, setI] = useState(0);
+  const list = images.filter(Boolean);
+  if (list.length <= 1) return <ProductMedia image={list[0] || "symbol"} alt={alt} />;
+  const cur = Math.min(i, list.length - 1);
+  return (
+    <div className="pm-gallery">
+      <div className="pm-gallery-main"><ProductMedia image={list[cur]} alt={alt} /></div>
+      <div className="pm-thumbs">
+        {list.map((im, k) => (
+          <button key={k} type="button" className={"pm-thumb" + (k === cur ? " on" : "")} onClick={() => setI(k)} aria-label={`Image ${k + 1}`}>
+            <ProductMedia image={im} alt="" />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const euro = (n: number) => n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" }).replace(",00", "");
 
 /* ---- carte produit avec ajout au panier ---- */

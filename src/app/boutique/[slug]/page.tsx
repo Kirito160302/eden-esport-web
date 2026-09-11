@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumb, SectionHead } from "@/components/ui";
-import { ProductMedia, ProductBuy } from "@/components/shop";
+import { ProductMedia, ProductGallery, ProductBuy } from "@/components/shop";
 import { getProducts, getProduct } from "@/lib/content";
 
 const euro = (n: number) => n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" }).replace(",00", "");
@@ -33,7 +33,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       <section className="section"><div className="wrap">
         <div className="product">
           <div className="product-media">
-            <ProductMedia image={p.image} alt={p.name} />
+            <ProductGallery images={p.images && p.images.length ? p.images : [p.image]} alt={p.name} />
             {p.badge && <span className="shop-badge">{p.badge}</span>}
           </div>
           <div>
