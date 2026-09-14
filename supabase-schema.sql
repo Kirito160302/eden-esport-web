@@ -854,3 +854,19 @@ drop policy if exists "club_storage_all" on storage.objects;
 create policy "club_storage_all" on storage.objects for all to authenticated
   using (bucket_id='club' and public.club_file_ok(name))
   with check (bucket_id='club' and public.club_file_ok(name));
+
+-- ============================================================
+--  BUREAU — ESPACE DOCUMENTS PAR RUBRIQUE 14/09/2026
+--  Un dépôt de documents par rubrique (section) : adherents, finance,
+--  events, partners, teams, material. Fichiers dans le bucket privé « bureau ».
+-- ============================================================
+create table if not exists public.bu_documents (
+  id uuid primary key default gen_random_uuid(),
+  section text,           -- rubrique : adherents | finance | events | partners | teams | material
+  title text, file text, doc_date date, notes text,
+  created_at timestamptz default now()
+);
+alter table public.bu_documents enable row level security;
+drop policy if exists "bu_documents_bureau_all" on public.bu_documents;
+create policy "bu_documents_bureau_all" on public.bu_documents
+  for all to authenticated using (public.is_bureau()) with check (public.is_bureau());

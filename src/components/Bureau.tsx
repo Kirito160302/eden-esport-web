@@ -969,23 +969,38 @@ const ROLE_MATRIX: [string, string][] = [
 type Sub = { key: string; label: string; render: () => React.ReactNode };
 type Section = { key: string; icon: string; label: string; subs: Sub[] };
 
+// Espace « Documents » présent dans chaque rubrique (fichiers déposés via Supabase Storage)
+const docSpaceFields: Field[] = [
+  { key: "title", label: "Titre" },
+  { key: "file", label: "Fichier", type: "file" },
+  { key: "doc_date", label: "Date", type: "date" },
+  { key: "notes", label: "Notes", type: "textarea" },
+];
+const docSub = (section: string): Sub => ({
+  key: "documents", label: "Documents",
+  render: () => <Crud table="bu_documents" fields={docSpaceFields} filter={(r) => r.section === section} defaults={{ section }} orderBy="doc_date" />,
+});
+
 const SECTIONS: Section[] = [
   { key: "dash", icon: "🏠", label: "Tableau de bord", subs: [{ key: "d", label: "Vue d'ensemble", render: () => <DashboardBureau /> }] },
   { key: "adherents", icon: "👥", label: "Adhérents", subs: [
     { key: "liste", label: "Liste des membres", render: () => <Crud table="members" fields={memberFields} orderBy="last_name" desc={false} /> },
     { key: "cotis", label: "Cotisations", render: () => <Crud table="dues" fields={duesFields} orderBy="due_date" /> },
-    { key: "docs", label: "Documents", render: () => <Crud table="documents" fields={docFields("Administratif")} filter={(r) => r.category === "Administratif"} defaults={{ category: "Administratif" }} /> },
+    { key: "docs", label: "Documents membres", render: () => <Crud table="documents" fields={docFields("Administratif")} filter={(r) => r.category === "Administratif"} defaults={{ category: "Administratif" }} /> },
+    docSub("adherents"),
   ] },
   { key: "finance", icon: "💰", label: "Finance", subs: [
     { key: "recettes", label: "Recettes", render: () => <Crud table="finance_entries" fields={recetteFields} filter={(r) => r.kind === "Recette"} defaults={{ kind: "Recette" }} orderBy="entry_date" /> },
     { key: "depenses", label: "Dépenses", render: () => <Crud table="finance_entries" fields={depenseFields} filter={(r) => r.kind === "Dépense"} defaults={{ kind: "Dépense" }} orderBy="entry_date" /> },
     { key: "factures", label: "Factures", render: () => <Crud table="invoices" fields={invoiceFields} orderBy="inv_date" /> },
     { key: "budget", label: "Budget", render: () => <BudgetModule /> },
+    docSub("finance"),
   ] },
   { key: "events", icon: "📅", label: "Événements", subs: [
     { key: "cal", label: "Calendrier", render: () => <Crud table="org_events" fields={eventFields} orderBy="event_date" /> },
     { key: "part", label: "Participants", render: () => <Crud table="event_participants" fields={participantFields} /> },
     { key: "orga", label: "Organisation", render: () => <Crud table="event_tasks" fields={eventTaskFields} /> },
+    docSub("events"),
   ] },
   { key: "docs", icon: "📄", label: "Documents", subs: DOC_CATS.map((c) => ({
     key: c, label: c, render: () => c === "Subvention"
@@ -1003,15 +1018,18 @@ const SECTIONS: Section[] = [
     ]} orderBy="name" desc={false} /> },
     { key: "contrats", label: "Contrats", render: () => <Crud table="partner_contracts" fields={contractFields} orderBy="end_date" /> },
     { key: "suivi", label: "Suivi", render: () => <Crud table="partner_followups" fields={followupFields} orderBy="due_date" desc={false} /> },
+    docSub("partners"),
   ] },
   { key: "teams", icon: "🎮", label: "Équipes", subs: [
     { key: "j", label: "Joueurs", render: () => <Crud table="bu_players" fields={playerFields} orderBy="pseudo" desc={false} /> },
     { key: "staff", label: "Staff", render: () => <Crud table="bu_staff" fields={staffFields} orderBy="name" desc={false} /> },
     { key: "compet", label: "Compétitions", render: () => <Crud table="bu_competitions" fields={competitionFields} orderBy="comp_date" /> },
+    docSub("teams"),
   ] },
   { key: "material", icon: "📦", label: "Matériel", subs: [
     { key: "inv", label: "Inventaire", render: () => <Crud table="equipment" fields={equipmentFields} orderBy="name" desc={false} /> },
     { key: "prets", label: "Prêts", render: () => <Crud table="loans" fields={loanFields} orderBy="out_date" /> },
+    docSub("material"),
   ] },
   { key: "messagerie", icon: "💬", label: "Messagerie", subs: [
     { key: "chat", label: "Discussions", render: () => <MessengerModule /> },
