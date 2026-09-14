@@ -69,6 +69,13 @@ function Crud({ table, fields, defaults = {}, filter, orderBy = "created_at", de
   const [q, setQ] = useState("");
   const [editingId, setEditingId] = useState<unknown>(null);
 
+  // Périmètre de la liste : plusieurs sous-onglets partagent la même table
+  // (ex. bu_documents pour tous les « Documents », finance_entries pour
+  // Recettes/Dépenses) et ne diffèrent que par leur filtre. On dérive une clé
+  // stable des `defaults` (qui reflètent toujours le filtre) pour forcer le
+  // rechargement quand on change de périmètre, sinon la liste reste figée sur
+  // la rubrique précédente jusqu'à un rafraîchissement complet de la page.
+  const scopeKey = JSON.stringify(defaults);
   const load = useCallback(async () => {
     if (!supabase) return;
     setLoading(true);
@@ -77,7 +84,9 @@ function Crud({ table, fields, defaults = {}, filter, orderBy = "created_at", de
     else { setErr(false); setRows(((res.data as Record<string, unknown>[]) || []).filter((r) => (filter ? filter(r) : true))); }
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [table]);
+  }, [table, scopeKey]);
+  // changement de périmètre → on repart d'une liste vide le temps du rechargement
+  useEffect(() => { setRows([]); setLoading(true); }, [scopeKey]);
   useEffect(() => { load(); }, [load]);
 
   const setV = (k: string, v: unknown) => setF((p) => ({ ...p, [k]: v }));
