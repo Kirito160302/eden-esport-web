@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, Fragment } from "react";
 import { getSupabase, SUPABASE_ENABLED } from "@/lib/supabase";
 
 const supabase = getSupabase();
@@ -55,10 +55,12 @@ async function fetchUnreadMap(meId: string): Promise<Record<string, number>> {
 /* ================================================================
    MOTEUR GÉNÉRIQUE — liste + ajout + suppression d'enregistrements
    ================================================================ */
-function Crud({ table, fields, defaults = {}, filter, orderBy = "created_at", desc = true, summary }: {
+function Crud({ table, fields, defaults = {}, filter, orderBy = "created_at", desc = true, summary, groupBy, groupOrder }: {
   table: string; fields: Field[]; defaults?: Record<string, unknown>;
   filter?: (r: Record<string, unknown>) => boolean; orderBy?: string; desc?: boolean;
   summary?: (rows: Record<string, unknown>[]) => React.ReactNode;
+  // regroupement optionnel de la liste par la valeur d'un champ (ex. sous-catégorie de documents)
+  groupBy?: string; groupOrder?: string[];
 }) {
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
@@ -152,6 +154,42 @@ function Crud({ table, fields, defaults = {}, filter, orderBy = "created_at", de
     URL.revokeObjectURL(url);
   }
 
+  // colonnes affichées : si on regroupe par un champ, on ne le répète pas en colonne
+  const cols = groupBy ? fields.filter((fl) => fl.key !== groupBy) : fields;
+  // liste regroupée par sous-catégorie, dans l'ordre fourni puis les valeurs restantes
+  const groups: [string, Record<string, unknown>[]][] = (() => {
+    if (!groupBy) return [];
+    const map = new Map<string, Record<string, unknown>[]>();
+    for (const r of view) {
+      const key = (r[groupBy] as string)?.trim() || "Non classé";
+      (map.get(key) || map.set(key, []).get(key)!).push(r);
+    }
+    const out: [string, Record<string, unknown>[]][] = [];
+    for (const g of groupOrder || []) { const items = map.get(g); if (items) { out.push([g, items]); map.delete(g); } }
+    for (const [g, items] of map) out.push([g, items]);
+    return out;
+  })();
+
+  const renderRow = (r: Record<string, unknown>) => (
+    <tr key={String(r.id)}>
+      {cols.map((fl) => (
+        <td key={fl.key}>
+          {fl.type === "bool" ? (
+            <button className={"bu-chip " + (r[fl.key] ? "ok" : "no")} onClick={() => toggleBool(r, fl.key)}>{r[fl.key] ? "Oui" : "Non"}</button>
+          ) : fl.type === "file" ? (
+            r[fl.key] ? <button className="bu-edit" onClick={() => openFile(r[fl.key] as string)} title={fileLabel(r[fl.key] as string)}>📎 Voir</button> : "—"
+          ) : fl.type === "number" ? (
+            /amount|planned|montant|prix/.test(fl.key) ? eur(r[fl.key] as number) : (r[fl.key] as string) ?? ""
+          ) : fl.type === "date" ? fmtD(r[fl.key] as string) : ((r[fl.key] as string) ?? "")}
+        </td>
+      ))}
+      <td className="bu-rowact">
+        <button className="bu-edit" onClick={() => startEdit(r)} aria-label="Modifier">✎</button>
+        <button className="bu-del" onClick={() => del(r.id)} aria-label="Supprimer">✕</button>
+      </td>
+    </tr>
+  );
+
   if (err) return <div className="bu-empty">Module non activé (table « {table} » absente). Lance le SQL fourni dans Supabase.</div>;
   if (loading) return <p className="bu-muted">Chargement…</p>;
 
@@ -200,29 +238,18 @@ function Crud({ table, fields, defaults = {}, filter, orderBy = "created_at", de
       )}
       <div className="bu-tablewrap">
         <table className="bu-table">
-          <thead><tr>{fields.map((fl) => <th key={fl.key}>{fl.label}</th>)}<th></th></tr></thead>
+          <thead><tr>{cols.map((fl) => <th key={fl.key}>{fl.label}</th>)}<th></th></tr></thead>
           <tbody>
             {view.length === 0 ? (
-              <tr><td colSpan={fields.length + 1} className="bu-muted">Aucune entrée{q ? " pour cette recherche" : " pour l'instant"}.</td></tr>
-            ) : view.map((r) => (
-              <tr key={String(r.id)}>
-                {fields.map((fl) => (
-                  <td key={fl.key}>
-                    {fl.type === "bool" ? (
-                      <button className={"bu-chip " + (r[fl.key] ? "ok" : "no")} onClick={() => toggleBool(r, fl.key)}>{r[fl.key] ? "Oui" : "Non"}</button>
-                    ) : fl.type === "file" ? (
-                      r[fl.key] ? <button className="bu-edit" onClick={() => openFile(r[fl.key] as string)} title={fileLabel(r[fl.key] as string)}>📎 Voir</button> : "—"
-                    ) : fl.type === "number" ? (
-                      /amount|planned|montant|prix/.test(fl.key) ? eur(r[fl.key] as number) : (r[fl.key] as string) ?? ""
-                    ) : fl.type === "date" ? fmtD(r[fl.key] as string) : ((r[fl.key] as string) ?? "")}
-                  </td>
-                ))}
-                <td className="bu-rowact">
-                  <button className="bu-edit" onClick={() => startEdit(r)} aria-label="Modifier">✎</button>
-                  <button className="bu-del" onClick={() => del(r.id)} aria-label="Supprimer">✕</button>
-                </td>
-              </tr>
-            ))}
+              <tr><td colSpan={cols.length + 1} className="bu-muted">Aucune entrée{q ? " pour cette recherche" : " pour l'instant"}.</td></tr>
+            ) : groupBy ? (
+              groups.map(([g, items]) => (
+                <Fragment key={g}>
+                  <tr className="bu-grouphead"><td colSpan={cols.length + 1}>{g}<span className="bu-groupcount">{items.length}</span></td></tr>
+                  {items.map(renderRow)}
+                </Fragment>
+              ))
+            ) : view.map(renderRow)}
           </tbody>
         </table>
       </div>
@@ -978,16 +1005,25 @@ const ROLE_MATRIX: [string, string][] = [
 type Sub = { key: string; label: string; render: () => React.ReactNode };
 type Section = { key: string; icon: string; label: string; subs: Sub[] };
 
-// Espace « Documents » présent dans chaque rubrique (fichiers déposés via Supabase Storage)
-const docSpaceFields: Field[] = [
+// Espace « Documents » présent dans chaque rubrique (fichiers déposés via Supabase Storage),
+// organisé en sous-catégories propres à chaque rubrique.
+const DOC_CATS_ADHERENTS = ["Inscription & Adhésion", "Règlement & Chartes", "Autorisations", "Santé & Bien-être", "Staff & Bénévoles", "Attestations & Paiements"];
+const DOC_CATS_FINANCE = ["Budget & Prévisionnel", "Bilans & Comptes", "Factures & Reçus", "Subventions & Dons", "Registres"];
+const DOC_CATS_EVENTS = ["Autorisations & Déclarations", "Logistique & Organisation", "Communication", "Bilans & Comptes-rendus"];
+const DOC_CATS_PARTNERS = ["Contrats & Conventions", "Présentations & Dossiers", "Suivi & Comptes-rendus"];
+const DOC_CATS_TEAMS = ["Contrats & Licences", "Règlements & Chartes", "Feuilles de match", "Médias & Autorisations"];
+const DOC_CATS_MATERIAL = ["Factures & Garanties", "Notices & Manuels", "Assurances", "Prêts & Décharges"];
+
+const docSpaceFields = (cats: string[]): Field[] => [
+  { key: "category", label: "Catégorie", type: "select", options: cats },
   { key: "title", label: "Titre" },
   { key: "file", label: "Fichier", type: "file" },
   { key: "doc_date", label: "Date", type: "date" },
   { key: "notes", label: "Notes", type: "textarea" },
 ];
-const docSub = (section: string): Sub => ({
+const docSub = (section: string, cats: string[]): Sub => ({
   key: "documents", label: "Documents",
-  render: () => <Crud table="bu_documents" fields={docSpaceFields} filter={(r) => r.section === section} defaults={{ section }} orderBy="doc_date" />,
+  render: () => <Crud table="bu_documents" fields={docSpaceFields(cats)} filter={(r) => r.section === section} defaults={{ section }} orderBy="doc_date" groupBy="category" groupOrder={cats} />,
 });
 
 const SECTIONS: Section[] = [
@@ -996,20 +1032,20 @@ const SECTIONS: Section[] = [
     { key: "liste", label: "Liste des membres", render: () => <Crud table="members" fields={memberFields} orderBy="last_name" desc={false} /> },
     { key: "cotis", label: "Cotisations", render: () => <Crud table="dues" fields={duesFields} orderBy="due_date" /> },
     { key: "docs", label: "Documents membres", render: () => <Crud table="documents" fields={docFields("Administratif")} filter={(r) => r.category === "Administratif"} defaults={{ category: "Administratif" }} /> },
-    docSub("adherents"),
+    docSub("adherents", DOC_CATS_ADHERENTS),
   ] },
   { key: "finance", icon: "💰", label: "Finance", subs: [
     { key: "recettes", label: "Recettes", render: () => <Crud table="finance_entries" fields={recetteFields} filter={(r) => r.kind === "Recette"} defaults={{ kind: "Recette" }} orderBy="entry_date" /> },
     { key: "depenses", label: "Dépenses", render: () => <Crud table="finance_entries" fields={depenseFields} filter={(r) => r.kind === "Dépense"} defaults={{ kind: "Dépense" }} orderBy="entry_date" /> },
     { key: "factures", label: "Factures", render: () => <Crud table="invoices" fields={invoiceFields} orderBy="inv_date" /> },
     { key: "budget", label: "Budget", render: () => <BudgetModule /> },
-    docSub("finance"),
+    docSub("finance", DOC_CATS_FINANCE),
   ] },
   { key: "events", icon: "📅", label: "Événements", subs: [
     { key: "cal", label: "Calendrier", render: () => <Crud table="org_events" fields={eventFields} orderBy="event_date" /> },
     { key: "part", label: "Participants", render: () => <Crud table="event_participants" fields={participantFields} /> },
     { key: "orga", label: "Organisation", render: () => <Crud table="event_tasks" fields={eventTaskFields} /> },
-    docSub("events"),
+    docSub("events", DOC_CATS_EVENTS),
   ] },
   { key: "docs", icon: "📄", label: "Documents", subs: DOC_CATS.map((c) => ({
     key: c, label: c, render: () => c === "Subvention"
@@ -1027,18 +1063,18 @@ const SECTIONS: Section[] = [
     ]} orderBy="name" desc={false} /> },
     { key: "contrats", label: "Contrats", render: () => <Crud table="partner_contracts" fields={contractFields} orderBy="end_date" /> },
     { key: "suivi", label: "Suivi", render: () => <Crud table="partner_followups" fields={followupFields} orderBy="due_date" desc={false} /> },
-    docSub("partners"),
+    docSub("partners", DOC_CATS_PARTNERS),
   ] },
   { key: "teams", icon: "🎮", label: "Équipes", subs: [
     { key: "j", label: "Joueurs", render: () => <Crud table="bu_players" fields={playerFields} orderBy="pseudo" desc={false} /> },
     { key: "staff", label: "Staff", render: () => <Crud table="bu_staff" fields={staffFields} orderBy="name" desc={false} /> },
     { key: "compet", label: "Compétitions", render: () => <Crud table="bu_competitions" fields={competitionFields} orderBy="comp_date" /> },
-    docSub("teams"),
+    docSub("teams", DOC_CATS_TEAMS),
   ] },
   { key: "material", icon: "📦", label: "Matériel", subs: [
     { key: "inv", label: "Inventaire", render: () => <Crud table="equipment" fields={equipmentFields} orderBy="name" desc={false} /> },
     { key: "prets", label: "Prêts", render: () => <Crud table="loans" fields={loanFields} orderBy="out_date" /> },
-    docSub("material"),
+    docSub("material", DOC_CATS_MATERIAL),
   ] },
   { key: "messagerie", icon: "💬", label: "Messagerie", subs: [
     { key: "chat", label: "Discussions", render: () => <MessengerModule /> },
