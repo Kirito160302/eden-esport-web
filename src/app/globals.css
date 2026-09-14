@@ -876,7 +876,7 @@ main section,.finale{scroll-margin-top:90px}
 .pt-marquee-item:hover img{filter:none;opacity:1}
 .pt-logo-text{font-family:var(--f-display);font-weight:800;font-size:1.5rem;letter-spacing:.02em;color:var(--muted);white-space:nowrap;text-transform:uppercase;transition:color .3s}
 .pt-marquee-item:hover .pt-logo-text{color:var(--lavender)}
-@keyframes ptScroll{from{transform:translateX(0)}to{transform:translateX(-25%)}}
+@keyframes ptScroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 @media(prefers-reduced-motion:reduce){.pt-marquee-track{animation:none;justify-content:center;flex-wrap:wrap}}
 
 /* --- blocs partenaires --- */

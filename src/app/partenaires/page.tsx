@@ -14,8 +14,13 @@ const tierLabel: Record<string, string> = {
 
 export default async function PartenairesPage() {
   const PARTNERS = await getPartners();
-  // le bandeau défile en boucle : on double la liste pour un défilement sans couture
-  const marquee = [...PARTNERS, ...PARTNERS, ...PARTNERS, ...PARTNERS];
+  // Bandeau défilant sans couture : on construit une "moitié" assez large pour
+  // couvrir tout l'écran (au moins ~10 logos, même avec peu de partenaires),
+  // puis on la duplique une fois. L'animation translate de -50% → boucle parfaite.
+  const n = Math.max(PARTNERS.length, 1);
+  const reps = Math.max(2, Math.ceil(10 / n));
+  const half = Array.from({ length: reps }).flatMap(() => PARTNERS);
+  const marquee = [...half, ...half];
 
   return (
     <>
@@ -29,7 +34,7 @@ export default async function PartenairesPage() {
       <div className="pt-marquee" aria-label="Nos partenaires">
         <div className="pt-marquee-track">
           {marquee.map((p, i) => (
-            <span className="pt-marquee-item" key={i} aria-hidden={i >= PARTNERS.length}>
+            <span className="pt-marquee-item" key={i} aria-hidden={i >= half.length}>
               <PartnerLogo name={p.name} logo={p.logo} />
             </span>
           ))}
