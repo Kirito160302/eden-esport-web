@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getTeams, getArticles, getPartners, getProducts, getEvents } from "@/lib/content";
+import { getTeams, getArticles, getPartners, getProducts, getEvents, frDateToIso } from "@/lib/content";
 import { TeamCard, NewsCard } from "@/components/cards";
 import HomeEffects from "@/components/HomeEffects";
 import PartnerLogo from "@/components/PartnerLogo";
@@ -16,11 +16,14 @@ const ACTIONS: [string, string][] = [
 
 export default async function Home() {
   const [teams, news, partners, products, events] = await Promise.all([getTeams(), getArticles("news"), getPartners(), getProducts(), getEvents()]);
-  // prochain événement à venir (le plus proche dans le temps) pour la section « Prochain événement »
+  // prochain événement à venir (le plus proche dans le temps) pour la section « Prochain événement ».
+  // On utilise la date ISO WordPress si présente, sinon on la déduit de la date affichée.
   const now = Date.now();
+  const effIso = (e: (typeof events)[number]) => e.iso || frDateToIso(e.date);
   const nextEvent = events
-    .filter((e) => (e.iso ? new Date(e.iso).getTime() > now : e.status === "upcoming"))
-    .sort((a, b) => (a.iso ? new Date(a.iso).getTime() : Infinity) - (b.iso ? new Date(b.iso).getTime() : Infinity))[0];
+    .filter((e) => { const i = effIso(e); return i ? new Date(i).getTime() > now : e.status === "upcoming"; })
+    .sort((a, b) => { const ia = effIso(a), ib = effIso(b); return (ia ? new Date(ia).getTime() : Infinity) - (ib ? new Date(ib).getTime() : Infinity); })[0];
+  const nextIso = nextEvent ? effIso(nextEvent) : undefined;
   // produit mis en avant : on privilégie un produit qui a une VRAIE photo
   // (pas le logo « symbol »), maillot en priorité, pour ne jamais afficher un visuel vide.
   const hasPhoto = (p?: (typeof products)[number]) => !!p && !!p.image && p.image !== "symbol";
@@ -129,7 +132,7 @@ export default async function Home() {
                 <h3>{nextEvent.title}</h3>
                 <p className="where">{nextEvent.date} · {nextEvent.place}</p>
                 {nextEvent.description && <p>{nextEvent.description}</p>}
-                {nextEvent.iso && <Countdown iso={nextEvent.iso} />}
+                {nextIso && <Countdown iso={nextIso} />}
                 <Link href={`/evenements/${nextEvent.slug}`} className="btn btn--gold">Voir l&apos;événement<span className="arw">→</span></Link>
               </div>
             </div>

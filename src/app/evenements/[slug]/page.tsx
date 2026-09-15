@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getEvent, getEvents } from "@/lib/content";
+import { getEvent, getEvents, frDateToIso } from "@/lib/content";
 import { Breadcrumb } from "@/components/ui";
 import Countdown from "@/components/Countdown";
 
@@ -24,7 +24,8 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
 
   const loc = e.address || e.place;
   const hasMap = !!loc && e.place.toLowerCase() !== "en ligne";
-  const upcoming = e.iso ? new Date(e.iso).getTime() > Date.now() : e.status === "upcoming";
+  const eIso = e.iso || frDateToIso(e.date);
+  const upcoming = eIso ? new Date(eIso).getTime() > Date.now() : e.status === "upcoming";
 
   return (
     <>
@@ -36,7 +37,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
         </div>
         <h1 style={{ marginTop: ".4rem" }}>{e.title}</h1>
         <p className="lead">{e.description}</p>
-        {upcoming && e.iso && <div style={{ marginTop: "1.4rem" }}><Countdown iso={e.iso} /></div>}
+        {upcoming && eIso && <div style={{ marginTop: "1.4rem" }}><Countdown iso={eIso} /></div>}
       </div></div>
 
       <section className="section"><div className="wrap grid-2" style={{ alignItems: "start" }}>

@@ -65,6 +65,23 @@ export async function getPlayer(slug: string): Promise<Player | null> {
 const EVENT_POSTERS: Record<string, string> = {
   "video-games-week-10": "/event-video-games-week.jpg",
 };
+
+// Convertit une date française affichée ("19 octobre 2026", ou "18 > 23 octobre 2026")
+// en date ISO utilisable pour le compte à rebours, quand le champ dateIso n'est pas
+// renseigné côté WordPress. Prend le premier jour trouvé collé au nom du mois.
+const FR_MONTHS: Record<string, string> = {
+  janvier: "01", "février": "02", fevrier: "02", mars: "03", avril: "04", mai: "05",
+  juin: "06", juillet: "07", "août": "08", aout: "08", septembre: "09",
+  octobre: "10", novembre: "11", "décembre": "12", decembre: "12",
+};
+export function frDateToIso(date?: string): string | undefined {
+  if (!date) return undefined;
+  const m = date.toLowerCase().match(/(\d{1,2})\s+([a-zàâäéèêëîïôöùûüç]+)\s+(\d{4})/i);
+  if (!m) return undefined;
+  const mm = FR_MONTHS[m[2]];
+  if (!mm) return undefined;
+  return `${m[3]}-${mm}-${m[1].padStart(2, "0")}T10:00`;
+}
 export async function getEvents(): Promise<Event[]> {
   const wpEv = await wp.wpEvents();
   const list = wpEv && wpEv.length ? wpEv : EVENTS;
