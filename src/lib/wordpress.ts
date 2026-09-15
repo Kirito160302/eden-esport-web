@@ -189,6 +189,7 @@ export async function wpEvents(): Promise<Event[] | null> {
       events(first: 50) {
         nodes {
           slug title
+          featuredImage { node { sourceUrl } }
           eventFields {
             eventDate dateIso place adresse categorie eventStatus tag description
             program lienBilleterie hotels restaurants${extra}
@@ -208,6 +209,7 @@ export async function wpEvents(): Promise<Event[] | null> {
       iso: f.dateIso || undefined,
       place: f.place || "",
       address: f.adresse || undefined,
+      image: n.featuredImage?.node?.sourceUrl || undefined,
       status: (one(f.eventStatus) === "past" ? "past" : "upcoming") as "upcoming" | "past",
       category: one(f.categorie) || undefined,
       tag: f.tag || "",

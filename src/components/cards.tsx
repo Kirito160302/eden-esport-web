@@ -158,7 +158,7 @@ export function PartnerCard({ name, description, url, tier }: { name: string; de
 export function EventCard({ event }: { event: Event }) {
   return (
     <Link className="event-card" data-cat={event.status} href={`/evenements/${event.slug}`} style={{ gridTemplateColumns: ".8fr 1.2fr" }}>
-      <div className="event-media"><img src="/symbol.png" alt="" /></div>
+      <div className={"event-media" + (event.image ? " event-media--photo" : "")}><img src={event.image || "/symbol.png"} alt={event.image ? event.title : ""} /></div>
       <div className="event-body">
         <span style={{ display: "flex", gap: ".5rem", flexWrap: "wrap" }}>
           <span className={"tag " + (event.status === "upcoming" ? "tag--live" : "")}><span className="dot"></span>{event.tag}</span>

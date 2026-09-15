@@ -35,6 +35,7 @@ export type Event = {
   place: string;            // lieu court, ex: "Metz"
   address?: string;         // adresse pour la carte, ex: "Parc des Expositions, Metz"
   status: "upcoming" | "past";
+  image?: string;           // affiche / visuel de l'événement (image mise en avant WP ou affiche locale)
   category?: string;        // Tournoi | LAN | Atelier | Rassemblement | Partenaire
   tag: string;
   description: string;

@@ -60,9 +60,15 @@ export async function getPlayer(slug: string): Promise<Player | null> {
   return (await getPlayers()).find((p) => p.slug === slug) ?? null;
 }
 
+// Affiches locales par événement : utilisées si l'événement n'a pas déjà
+// une image mise en avant côté WordPress. Clé = slug de l'événement.
+const EVENT_POSTERS: Record<string, string> = {
+  "video-games-week-10": "/event-video-games-week.jpg",
+};
 export async function getEvents(): Promise<Event[]> {
   const wpEv = await wp.wpEvents();
-  return wpEv && wpEv.length ? wpEv : EVENTS;
+  const list = wpEv && wpEv.length ? wpEv : EVENTS;
+  return list.map((e) => (e.image ? e : EVENT_POSTERS[e.slug] ? { ...e, image: EVENT_POSTERS[e.slug] } : e));
 }
 export async function getEvent(slug: string): Promise<Event | null> {
   return (await getEvents()).find((e) => e.slug === slug) ?? null;
