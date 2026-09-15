@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { getTeams, getArticles, getPartners, getProducts } from "@/lib/content";
+import { getTeams, getArticles, getPartners, getProducts, getEvents } from "@/lib/content";
 import { TeamCard, NewsCard } from "@/components/cards";
 import HomeEffects from "@/components/HomeEffects";
 import PartnerLogo from "@/components/PartnerLogo";
+import Countdown from "@/components/Countdown";
 
 const ACTIONS: [string, string][] = [
   ["Compétition", "Des équipes exigeantes qui portent les couleurs d'Eden sur les scènes esport."],
@@ -14,7 +15,12 @@ const ACTIONS: [string, string][] = [
 ];
 
 export default async function Home() {
-  const [teams, news, partners, products] = await Promise.all([getTeams(), getArticles("news"), getPartners(), getProducts()]);
+  const [teams, news, partners, products, events] = await Promise.all([getTeams(), getArticles("news"), getPartners(), getProducts(), getEvents()]);
+  // prochain événement à venir (le plus proche dans le temps) pour la section « Prochain événement »
+  const now = Date.now();
+  const nextEvent = events
+    .filter((e) => (e.iso ? new Date(e.iso).getTime() > now : e.status === "upcoming"))
+    .sort((a, b) => (a.iso ? new Date(a.iso).getTime() : Infinity) - (b.iso ? new Date(b.iso).getTime() : Infinity))[0];
   // produit mis en avant : on privilégie un produit qui a une VRAIE photo
   // (pas le logo « symbol »), maillot en priorité, pour ne jamais afficher un visuel vide.
   const hasPhoto = (p?: (typeof products)[number]) => !!p && !!p.image && p.image !== "symbol";
@@ -102,6 +108,34 @@ export default async function Home() {
           </div>
         </div>
       </section>
+
+      {/* PROCHAIN ÉVÉNEMENT */}
+      {nextEvent && (
+        <section className="section" aria-label="Prochain événement">
+          <div className="wrap">
+            <div className="section-head reveal">
+              <p className="eyebrow">À ne pas manquer</p>
+              <h2 style={{ fontSize: "var(--fs-h2)" }}>Prochain événement</h2>
+            </div>
+            <div className="evt-next reveal d1">
+              <Link href={`/evenements/${nextEvent.slug}`} className="evt-next-poster" aria-label={nextEvent.title}>
+                <img src={nextEvent.image || "/symbol.png"} alt={nextEvent.title} />
+              </Link>
+              <div className="evt-next-body">
+                <span style={{ display: "flex", gap: ".5rem", flexWrap: "wrap" }}>
+                  <span className="tag tag--live"><span className="dot"></span>{nextEvent.tag}</span>
+                  {nextEvent.category && <span className="tag tag--gold">{nextEvent.category}</span>}
+                </span>
+                <h3>{nextEvent.title}</h3>
+                <p className="where">{nextEvent.date} · {nextEvent.place}</p>
+                {nextEvent.description && <p>{nextEvent.description}</p>}
+                {nextEvent.iso && <Countdown iso={nextEvent.iso} />}
+                <Link href={`/evenements/${nextEvent.slug}`} className="btn btn--gold">Voir l&apos;événement<span className="arw">→</span></Link>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ACTUALITÉS */}
       <section className="section" aria-label="Actualités">

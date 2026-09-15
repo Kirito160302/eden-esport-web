@@ -304,6 +304,16 @@ main section,.finale{scroll-margin-top:90px}
 .event-media img{width:44%;opacity:.9;filter:drop-shadow(0 0 40px rgba(125,92,255,.55))}
 .event-media--photo{padding:0}
 .event-media--photo img{width:100%;height:100%;object-fit:contain;opacity:1;filter:none}
+/* Section « Prochain événement » sur l'accueil */
+.evt-next{display:grid;grid-template-columns:minmax(0,.72fr) minmax(0,1.28fr);gap:2rem;align-items:center;border:1px solid var(--line-2);border-radius:16px;background:var(--surface);padding:1.6rem;overflow:hidden}
+.evt-next-poster{display:block;border-radius:12px;overflow:hidden;background:linear-gradient(160deg,#140f28,#0a0a12);line-height:0}
+.evt-next-poster img{width:100%;height:100%;object-fit:contain;max-height:520px;transition:transform .4s ease}
+.evt-next-poster:hover img{transform:scale(1.02)}
+.evt-next-body h3{font-size:clamp(1.6rem,3vw,2.4rem);margin:.9rem 0 .4rem}
+.evt-next-body .where{color:var(--lavender);font-family:var(--f-display);font-size:.8rem;letter-spacing:.14em;text-transform:uppercase}
+.evt-next-body p:not(.where){color:var(--muted);margin:.9rem 0 1.2rem;max-width:52ch}
+.evt-next .countdown{margin:1.2rem 0 1.5rem}
+@media (max-width:760px){.evt-next{grid-template-columns:1fr;gap:1.4rem}.evt-next-poster img{max-height:420px}}
 .event-body{padding:clamp(1.8rem,4vw,3rem)}
 .event-body h3{font-size:clamp(1.6rem,3vw,2.4rem);margin:1rem 0 .5rem}
 .event-body .where{color:var(--lavender);font-family:var(--f-display);font-size:.8rem;letter-spacing:.14em;text-transform:uppercase}
