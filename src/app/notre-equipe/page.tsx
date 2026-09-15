@@ -15,7 +15,7 @@ const BUREAU: Member[] = [
 ];
 
 const POLES: Member[] = [
-  { name: "Luc Dinghin", role: "Responsable Esport" },
+  { name: "Luc Dinghin", role: "Responsable Esport", img: "/team/luc.jpg" },
   { name: "Raenavia", role: "Responsable League of Legends" },
   { name: "Popy", role: "Responsable Valorant" },
   { name: "Romaric Malapeyre", role: "Responsable Académie", img: "/team/roro.jpg" },
