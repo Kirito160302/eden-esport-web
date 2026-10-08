@@ -413,18 +413,37 @@ const SLOTS = [
   { key: "nuit", label: "Nuit", hours: "21h–00h" },
 ] as const;
 
-// Équipes — on normalise ce que contient profiles.team / sessions.team
-const TEAMS = [
-  { key: "valorant", label: "Valorant" },
-  { key: "lol", label: "League of Legends" },
+// Équipes Eden — source de vérité. `key` = identifiant stocké dans
+// profiles.team / sessions.team / announcements.team ; `game` pilote les
+// catalogues (agents Valorant, champions LoL) et le comportement (TFT = individuel).
+type TeamGame = "valorant" | "lol" | "tft";
+type TeamDef = { key: string; label: string; short: string; game: TeamGame };
+const TEAMS: readonly TeamDef[] = [
+  { key: "valorant-pro", label: "Valorant Pro", short: "VAL Pro", game: "valorant" },
+  { key: "valorant-rising", label: "Valorant Rising", short: "VAL Rising", game: "valorant" },
+  { key: "valorant-academie", label: "Valorant Académie", short: "VAL Acad", game: "valorant" },
+  { key: "lol-pro", label: "League of Legends Pro", short: "LoL Pro", game: "lol" },
+  { key: "lol-two", label: "League of Legends Two", short: "LoL Two", game: "lol" },
+  { key: "lol-academique", label: "League of Legends Académique", short: "LoL Acad", game: "lol" },
+  { key: "tft", label: "TFT", short: "TFT", game: "tft" },
 ] as const;
+
+// Normalise une valeur stockée vers une clé d'équipe connue.
+// Reconnaît les nouvelles clés (slugs) et rattrape les anciennes valeurs
+// génériques (« Valorant » / « League of Legends ») vers l'équipe Pro par défaut.
 function teamKey(t?: string | null): string {
-  const s = (t || "").toLowerCase();
-  if (s.includes("valo")) return "valorant";
-  if (s.includes("lol") || s.includes("league")) return "lol";
+  const s = (t || "").trim().toLowerCase();
+  if (!s) return "";
+  const direct = TEAMS.find((x) => x.key === s);
+  if (direct) return direct.key;
+  if (s.includes("valo")) return "valorant-pro";
+  if (s.includes("lol") || s.includes("league")) return "lol-pro";
+  if (s.includes("tft") || s.includes("teamfight")) return "tft";
   return "";
 }
-const teamLabel = (t?: string | null) => TEAMS.find((x) => x.key === teamKey(t))?.label || t || "";
+const teamDef = (t?: string | null): TeamDef | undefined => TEAMS.find((x) => x.key === teamKey(t));
+const teamLabel = (t?: string | null) => teamDef(t)?.label || t || "";
+const teamGame = (t?: string | null): TeamGame => teamDef(t)?.game || "valorant";
 
 function WeeklyAvailability({ profile, profiles }: { profile: Profile; profiles: Record<string, Profile> }) {
   const [view, setView] = useState<"me" | "team">("me");
@@ -788,7 +807,12 @@ function MyProfileForm({ profile, onSaved, onCancel }: { profile: Profile; onSav
 /* ------------------------------------------------------------------ */
 /*  ÉQUIPE — roster interne                                             */
 /* ------------------------------------------------------------------ */
-function RosterView({ members, me, onSaved }: { members: Record<string, Profile>; me: Profile; onSaved: () => void }) {
+async function moveMemberToTeam(userId: string, teamKeyVal: string) {
+  if (!supabase) return;
+  await supabase.from("profiles").update({ team: teamKeyVal }).eq("id", userId);
+}
+
+function RosterView({ members, me, isStaff, onSaved }: { members: Record<string, Profile>; me: Profile; isStaff: boolean; onSaved: () => void }) {
   const [editing, setEditing] = useState(false);
   const list = Object.values(members).sort((a, b) => (a.pseudo || "").localeCompare(b.pseudo || ""));
 
@@ -818,6 +842,14 @@ function RosterView({ members, me, onSaved }: { members: Record<string, Profile>
                 </div>
                 {p.bio ? <p className="esp-member-bio">{p.bio}</p> : null}
                 <SocialLinks socials={parseSocialsText(p.socials)} />
+                {isStaff && (
+                  <label className="esp-member-move">
+                    <span className="muted" style={{ fontSize: ".78rem" }}>Équipe</span>
+                    <select defaultValue={teamKey(p.team)} onChange={async (e) => { await moveMemberToTeam(p.id, e.target.value); onSaved(); }}>
+                      {TEAMS.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+                    </select>
+                  </label>
+                )}
               </div>
             </div>
           ))}
@@ -1080,7 +1112,14 @@ function PoolsSection({ team, game, isStaff, meId, members }: { team: string; ga
 
 function CompoView({ team, isStaff, meId, members }: { team: string; isStaff: boolean; meId: string; members: Record<string, Profile> }) {
   const [sub, setSub] = useState<"comps" | "pools">("comps");
-  const game = team; // 'valorant' | 'lol'
+  const game = teamGame(team); // 'valorant' | 'lol' | 'tft'
+  if (game === "tft") {
+    return (
+      <div className="esp-card esp-center">
+        <p className="muted">Le TFT est un format individuel : pas de composition d&apos;équipe ni de draft. Les résultats s&apos;enregistrent directement sur chaque séance/compétition.</p>
+      </div>
+    );
+  }
   return (
     <div>
       <div className="esp-seg" style={{ marginBottom: "1rem" }}>
@@ -1098,7 +1137,7 @@ function CompoView({ team, isStaff, meId, members }: { team: string; isStaff: bo
 /* ------------------------------------------------------------------ */
 function Dashboard({ profile, onLogout }: { profile: Profile; onLogout: () => void }) {
   const [tab, setTab] = useState<"home" | "seances" | "week" | "calendar" | "compos" | "team">("home");
-  const [team, setTeam] = useState<string>(teamKey(profile.team) || "valorant");
+  const [team, setTeam] = useState<string>(teamKey(profile.team) || TEAMS[0].key);
   const [seances, setSeances] = useState<Seance[]>([]);
   const [avails, setAvails] = useState<Availability[]>([]);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
@@ -1185,12 +1224,12 @@ function Dashboard({ profile, onLogout }: { profile: Profile; onLogout: () => vo
       <div className="esp-teamsel">
         {isStaff ? (
           TEAMS.map((t) => (
-            <button key={t.key} className={"esp-teambtn esp-team-" + t.key + (team === t.key ? " on" : "")}
+            <button key={t.key} className={"esp-teambtn esp-game-" + t.game + (team === t.key ? " on" : "")}
               onClick={() => setTeam(t.key)}>{t.label}</button>
           ))
         ) : (
-          <span className={"esp-teambtn esp-team-" + team + " on"} style={{ cursor: "default" }}>
-            {TEAMS.find((t) => t.key === team)?.label || "Mon équipe"}
+          <span className={"esp-teambtn esp-game-" + teamGame(team) + " on"} style={{ cursor: "default" }}>
+            {teamLabel(team) || "Mon équipe"}
           </span>
         )}
       </div>
@@ -1228,7 +1267,7 @@ function Dashboard({ profile, onLogout }: { profile: Profile; onLogout: () => vo
       {tab === "week" && <WeeklyAvailability profile={me} profiles={teamMembers} />}
       {tab === "calendar" && <CalendarView seances={seances} team={team} />}
       {tab === "compos" && <CompoView team={team} isStaff={isStaff} meId={profile.id} members={teamMembers} />}
-      {tab === "team" && <RosterView members={teamMembers} me={me} onSaved={load} />}
+      {tab === "team" && <RosterView members={teamMembers} me={me} isStaff={isStaff} onSaved={load} />}
     </>
   );
 }

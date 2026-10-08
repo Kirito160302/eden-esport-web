@@ -1212,8 +1212,12 @@ main section,.finale{scroll-margin-top:90px}
 .esp-teamsel{display:flex;gap:.6rem;margin-bottom:1.1rem;flex-wrap:wrap}
 .esp-teambtn{border:1px solid var(--line-2);background:var(--surface);color:var(--muted);padding:.5rem 1.1rem;border-radius:999px;cursor:pointer;font:inherit;font-weight:700;font-size:.9rem;transition:all .15s}
 .esp-teambtn:hover{color:var(--text);border-color:var(--line-3)}
-.esp-teambtn.esp-team-valorant.on{background:#ff4655;border-color:#ff4655;color:#fff}
-.esp-teambtn.esp-team-lol.on{background:#0a7cff;border-color:#0a7cff;color:#fff}
+.esp-teambtn.on{background:var(--violet,#7d5cff);border-color:var(--violet,#7d5cff);color:#fff}
+.esp-teambtn.esp-game-valorant.on{background:#ff4655;border-color:#ff4655;color:#fff}
+.esp-teambtn.esp-game-lol.on{background:#0a7cff;border-color:#0a7cff;color:#fff}
+.esp-teambtn.esp-game-tft.on{background:#c79a3b;border-color:#c79a3b;color:#1a1400}
+.esp-member-move{display:flex;align-items:center;gap:.45rem;margin-top:.6rem}
+.esp-member-move select{font:inherit;font-size:.82rem;padding:.25rem .5rem;border-radius:8px;border:1px solid var(--line-2);background:var(--surface);color:var(--text)}
 /* menu déroulant dans les formulaires de l'espace */
 .esp-card .field select,.form .field select{width:100%;padding:.7rem .8rem;border-radius:10px;border:1px solid var(--line-2);background:var(--surface-2);color:var(--text);font:inherit}
 
