@@ -154,10 +154,10 @@ function CreateForm({ onCreated, defaultTeam }: { onCreated: () => void; default
     const starts_at = new Date(`${f.date}T${f.time || "19:00"}`).toISOString();
     const { error } = await supabase.from("sessions").insert({
       type,
-      title: f.title || (type === "match" ? "Match" : "Entraînement"),
+      title: f.title || sessionTypeLabel(type),
       starts_at,
       team: f.team || null,
-      opponent: type === "match" ? f.opponent || null : null,
+      opponent: isCompetitive(type) ? f.opponent || null : null,
       location: f.location || null,
       notes: f.notes || null,
     });
@@ -175,11 +175,12 @@ function CreateForm({ onCreated, defaultTeam }: { onCreated: () => void; default
 
   return (
     <form className="form esp-card" onSubmit={submit} style={{ marginBottom: "1.2rem" }}>
-      <div className="esp-seg">
-        <button type="button" className={type === "training" ? "on" : ""} onClick={() => setType("training")}>Entraînement</button>
-        <button type="button" className={type === "match" ? "on" : ""} onClick={() => setType("match")}>Match</button>
+      <div className="esp-seg esp-seg-wrap">
+        {SESSION_TYPES.map((st) => (
+          <button key={st.key} type="button" className={type === st.key ? "on" : ""} onClick={() => setType(st.key)}>{st.label}</button>
+        ))}
       </div>
-      <div className="field"><label>Titre</label><input value={f.title} onChange={(e) => set("title", e.target.value)} placeholder={type === "match" ? "ex : Match amical" : "ex : Scrim Valorant"} /></div>
+      <div className="field"><label>Titre</label><input value={f.title} onChange={(e) => set("title", e.target.value)} placeholder={isCompetitive(type) ? "ex : Scrim vs Team X" : "ex : Entraînement visée"} /></div>
       <div className="esp-row">
         <div className="field"><label>Date</label><input type="date" required value={f.date} onChange={(e) => set("date", e.target.value)} /></div>
         <div className="field"><label>Heure</label><input type="time" value={f.time} onChange={(e) => set("time", e.target.value)} /></div>
@@ -190,7 +191,7 @@ function CreateForm({ onCreated, defaultTeam }: { onCreated: () => void; default
             {TEAMS.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
           </select>
         </div>
-        {type === "match" && <div className="field"><label>Adversaire</label><input value={f.opponent} onChange={(e) => set("opponent", e.target.value)} placeholder="Nom de l'équipe" /></div>}
+        {isCompetitive(type) && <div className="field"><label>Adversaire</label><input value={f.opponent} onChange={(e) => set("opponent", e.target.value)} placeholder="Nom de l'équipe" /></div>}
       </div>
       <div className="field"><label>Lieu / lien</label><input value={f.location} onChange={(e) => set("location", e.target.value)} placeholder="En ligne, salle, lien Discord…" /></div>
       <div className="field"><label>Notes</label><textarea value={f.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Infos complémentaires (optionnel)"></textarea></div>
@@ -351,7 +352,7 @@ function SeanceCard({
   return (
     <div className="esp-card esp-seance">
       <div className="esp-seance-head">
-        <span className={"esp-badge esp-" + s.type}>{s.type === "match" ? "Match" : "Entraînement"}</span>
+        <span className={"esp-badge esp-" + s.type}>{sessionTypeLabel(s.type)}</span>
         <span className="esp-date">{fmtDate(s.starts_at)} · {fmtHour(s.starts_at)}</span>
       </div>
       <h3>{s.title}{s.opponent ? <span className="esp-vs"> vs {s.opponent}</span> : null}</h3>
@@ -361,7 +362,7 @@ function SeanceCard({
       </p>
       {s.notes ? <p className="esp-notes">{s.notes}</p> : null}
 
-      {s.type === "match" && (
+      {isCompetitive(s.type) && teamGame(s.team) !== "tft" && (
         <MatchCompo s={s} isStaff={isStaff} members={members} lineups={lineups} onChange={onChange} />
       )}
 
@@ -444,6 +445,17 @@ function teamKey(t?: string | null): string {
 const teamDef = (t?: string | null): TeamDef | undefined => TEAMS.find((x) => x.key === teamKey(t));
 const teamLabel = (t?: string | null) => teamDef(t)?.label || t || "";
 const teamGame = (t?: string | null): TeamGame => teamDef(t)?.game || "valorant";
+
+// Types de séance : pracc (entraînement), scrim, match, compétition.
+const SESSION_TYPES: { key: SessionType; label: string; short: string }[] = [
+  { key: "training", label: "Entraînement", short: "Pracc" },
+  { key: "scrim", label: "Scrim", short: "Scrim" },
+  { key: "match", label: "Match", short: "Match" },
+  { key: "competition", label: "Compétition", short: "Compét." },
+];
+const sessionTypeLabel = (t?: string | null) => SESSION_TYPES.find((x) => x.key === t)?.label || "Séance";
+// Séance « compétitive » = avec adversaire + feuille de match (tout sauf l'entraînement).
+const isCompetitive = (t?: string | null) => t === "scrim" || t === "match" || t === "competition";
 
 function WeeklyAvailability({ profile, profiles }: { profile: Profile; profiles: Record<string, Profile> }) {
   const [view, setView] = useState<"me" | "team">("me");
@@ -660,17 +672,17 @@ function HomeView({ profile, team, seances, avails, announcements, isStaff, onRs
     .filter((s) => teamKey(s.team) === team && new Date(s.starts_at).getTime() > now - 3 * 3600 * 1000)
     .sort((a, b) => +new Date(a.starts_at) - +new Date(b.starts_at));
   const nextTraining = future.find((s) => s.type === "training");
-  const nextMatch = future.find((s) => s.type === "match");
+  const nextCompet = future.find((s) => isCompetitive(s.type));
   const nextAny = future[0];
   const myNext = nextAny ? avails.find((a) => a.session_id === nextAny.id && a.user_id === profile.id)?.status : undefined;
 
-  const Mini = ({ s, kind }: { s?: Seance; kind: "training" | "match" }) => (
+  const Mini = ({ s, kind }: { s?: Seance; kind: "training" | "compet" }) => (
     <div className="esp-card esp-mini">
-      <span className={"esp-badge esp-" + kind}>{kind === "match" ? "Prochain match" : "Prochain entraînement"}</span>
+      <span className={"esp-badge esp-" + (kind === "compet" ? "match" : "training")}>{kind === "compet" ? "Prochaine échéance" : "Prochain entraînement"}</span>
       {s ? (
         <>
           <div className="esp-mini-date">{fmtDate(s.starts_at)}</div>
-          <div className="esp-mini-hour">{fmtHour(s.starts_at)}{s.opponent ? ` · vs ${s.opponent}` : ""}</div>
+          <div className="esp-mini-hour">{sessionTypeLabel(s.type)}{s.opponent ? ` · vs ${s.opponent}` : ""} — {fmtHour(s.starts_at)}</div>
           {s.location ? <div className="muted" style={{ fontSize: ".85rem" }}>{s.location}</div> : null}
         </>
       ) : <p className="muted" style={{ marginTop: ".6rem" }}>Rien de prévu.</p>}
@@ -682,12 +694,12 @@ function HomeView({ profile, team, seances, avails, announcements, isStaff, onRs
       <h2 style={{ marginBottom: "1rem" }}>Salut {profile.pseudo} 👋</h2>
       <div className="esp-home-grid">
         <Mini s={nextTraining} kind="training" />
-        <Mini s={nextMatch} kind="match" />
+        <Mini s={nextCompet} kind="compet" />
       </div>
 
       {nextAny && !myNext && (
         <div className="esp-card esp-confirm">
-          <p>Tu n&apos;as pas encore répondu pour <strong>{nextAny.type === "match" ? "le prochain match" : "le prochain entraînement"}</strong> ({fmtDate(nextAny.starts_at)} · {fmtHour(nextAny.starts_at)}). Tu viens ?</p>
+          <p>Tu n&apos;as pas encore répondu pour <strong>{sessionTypeLabel(nextAny.type)}</strong>{nextAny.opponent ? ` vs ${nextAny.opponent}` : ""} ({fmtDate(nextAny.starts_at)} · {fmtHour(nextAny.starts_at)}). Tu viens ?</p>
           <div className="esp-rsvp">
             {STATUS.map((st) => (
               <button key={st.key} type="button" className={"esp-rsvp-btn esp-" + st.cls}
@@ -1133,10 +1145,72 @@ function CompoView({ team, isStaff, meId, members }: { team: string; isStaff: bo
 }
 
 /* ------------------------------------------------------------------ */
+/*  PLANNING GLOBAL — toutes les équipes réunies                       */
+/* ------------------------------------------------------------------ */
+function GlobalPlanning({ seances, isStaff, onDelete, onChange }: {
+  seances: Seance[]; isStaff: boolean; onDelete: (id: string) => void; onChange: () => void;
+}) {
+  const [team, setTeam] = useState<string>("all");
+  const [type, setType] = useState<string>("all");
+  const now = Date.now();
+  const list = seances
+    .filter((s) => new Date(s.starts_at).getTime() > now - 3 * 3600 * 1000)
+    .filter((s) => team === "all" || teamKey(s.team) === team)
+    .filter((s) => type === "all" || s.type === type)
+    .sort((a, b) => +new Date(a.starts_at) - +new Date(b.starts_at));
+
+  const groups: { day: string; items: Seance[] }[] = [];
+  for (const s of list) {
+    const day = new Date(s.starts_at).toISOString().slice(0, 10);
+    let g = groups.find((x) => x.day === day);
+    if (!g) { g = { day, items: [] }; groups.push(g); }
+    g.items.push(s);
+  }
+
+  return (
+    <div>
+      {isStaff && <CreateForm onCreated={onChange} defaultTeam={team === "all" ? TEAMS[0].key : team} />}
+      <div className="esp-filters">
+        <select value={team} onChange={(e) => setTeam(e.target.value)}>
+          <option value="all">Toutes les équipes</option>
+          {TEAMS.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+        </select>
+        <select value={type} onChange={(e) => setType(e.target.value)}>
+          <option value="all">Tous les types</option>
+          {SESSION_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+        </select>
+        <span className="muted" style={{ fontSize: ".85rem", marginLeft: "auto" }}>{list.length} séance{list.length > 1 ? "s" : ""}</span>
+      </div>
+      {groups.length === 0 ? (
+        <div className="esp-card esp-center"><p className="muted">Aucune séance à venir pour ce filtre.</p></div>
+      ) : groups.map((g) => (
+        <div key={g.day} className="esp-day">
+          <div className="esp-day-head">{fmtDate(g.items[0].starts_at)}</div>
+          <div className="esp-glist">
+            {g.items.map((s) => {
+              const def = teamDef(s.team);
+              return (
+                <div key={s.id} className="esp-grow">
+                  <span className="esp-gtime">{fmtHour(s.starts_at)}</span>
+                  <span className={"esp-gteam esp-game-" + (def?.game || "valorant")}>{def?.short || teamLabel(s.team) || "—"}</span>
+                  <span className={"esp-badge esp-" + s.type}>{sessionTypeLabel(s.type)}</span>
+                  <span className="esp-gtitle">{s.title}{s.opponent ? <em> vs {s.opponent}</em> : null}{s.location ? <span className="muted"> · {s.location}</span> : null}</span>
+                  {isStaff && <button type="button" className="esp-gdel" title="Supprimer" onClick={() => onDelete(s.id)}>✕</button>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Tableau de bord (connecté)                                         */
 /* ------------------------------------------------------------------ */
 function Dashboard({ profile, onLogout }: { profile: Profile; onLogout: () => void }) {
-  const [tab, setTab] = useState<"home" | "seances" | "week" | "calendar" | "compos" | "team">("home");
+  const [tab, setTab] = useState<"home" | "global" | "seances" | "week" | "calendar" | "compos" | "team">("home");
   const [team, setTeam] = useState<string>(teamKey(profile.team) || TEAMS[0].key);
   const [seances, setSeances] = useState<Seance[]>([]);
   const [avails, setAvails] = useState<Availability[]>([]);
@@ -1202,6 +1276,7 @@ function Dashboard({ profile, onLogout }: { profile: Profile; onLogout: () => vo
 
   const TABS: { key: typeof tab; label: string }[] = [
     { key: "home", label: "Accueil" },
+    { key: "global", label: "Planning global" },
     { key: "seances", label: "Séances" },
     { key: "week", label: "Dispos semaine" },
     { key: "calendar", label: "Calendrier" },
@@ -1264,6 +1339,7 @@ function Dashboard({ profile, onLogout }: { profile: Profile; onLogout: () => vo
         </>
       )}
 
+      {tab === "global" && <GlobalPlanning seances={seances} isStaff={isStaff} onDelete={onDelete} onChange={load} />}
       {tab === "week" && <WeeklyAvailability profile={me} profiles={teamMembers} />}
       {tab === "calendar" && <CalendarView seances={seances} team={team} />}
       {tab === "compos" && <CompoView team={team} isStaff={isStaff} meId={profile.id} members={teamMembers} />}

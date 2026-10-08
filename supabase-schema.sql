@@ -15,7 +15,7 @@ create table if not exists public.profiles (
 -- 2) SÉANCES (entraînements & matchs)
 create table if not exists public.sessions (
   id         uuid primary key default gen_random_uuid(),
-  type       text not null check (type in ('training','match')),
+  type       text not null check (type in ('training','scrim','match','competition')),
   title      text not null default '',
   starts_at  timestamptz not null,
   ends_at    timestamptz,

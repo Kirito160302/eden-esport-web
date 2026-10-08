@@ -23,7 +23,7 @@ export type Announcement = {
   created_at: string;
 };
 
-export type SessionType = "training" | "match";
+export type SessionType = "training" | "scrim" | "match" | "competition";
 
 export type Seance = {
   id: string;

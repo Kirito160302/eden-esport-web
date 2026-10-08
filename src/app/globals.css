@@ -1163,6 +1163,25 @@ main section,.finale{scroll-margin-top:90px}
 .esp-badge{font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;font-weight:700;padding:.2rem .55rem;border-radius:6px}
 .esp-training{background:rgba(125,92,255,.16);color:var(--lavender)}
 .esp-match{background:rgba(255,70,85,.16);color:#ff8a94}
+.esp-scrim{background:rgba(246,201,92,.16);color:#f6c95c}
+.esp-competition{background:rgba(91,208,141,.16);color:#5bd08d}
+.esp-seg-wrap{flex-wrap:wrap}
+/* Planning global (toutes équipes) */
+.esp-filters{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:0 0 1.1rem}
+.esp-filters select{font:inherit;font-size:.86rem;padding:.4rem .6rem;border-radius:8px;border:1px solid var(--line-2);background:var(--surface);color:var(--text)}
+.esp-day{margin-bottom:1.1rem}
+.esp-day-head{font-weight:700;font-size:.82rem;text-transform:capitalize;color:var(--muted);letter-spacing:.02em;padding:.3rem 0 .35rem;border-bottom:1px solid var(--line-2);margin-bottom:.55rem}
+.esp-glist{display:flex;flex-direction:column;gap:.45rem}
+.esp-grow{display:flex;align-items:center;gap:.6rem;background:var(--surface);border:1px solid var(--line-2);border-radius:10px;padding:.55rem .7rem;flex-wrap:wrap}
+.esp-gtime{font-weight:700;font-variant-numeric:tabular-nums;font-size:.9rem;min-width:3rem}
+.esp-gteam{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.03em;padding:.18rem .5rem;border-radius:999px;color:#fff}
+.esp-gteam.esp-game-valorant{background:#ff4655}
+.esp-gteam.esp-game-lol{background:#0a7cff}
+.esp-gteam.esp-game-tft{background:#c79a3b;color:#1a1400}
+.esp-gtitle{flex:1;min-width:150px;font-size:.9rem}
+.esp-gtitle em{font-style:normal;color:var(--lavender)}
+.esp-gdel{margin-left:auto;background:none;border:none;color:#c96;cursor:pointer;font-size:.95rem;opacity:.6}
+.esp-gdel:hover{opacity:1}
 .esp-date{font-size:.85rem;color:var(--muted);text-transform:capitalize}
 .esp-seance h3{font-size:1.15rem;margin:.1rem 0}
 .esp-vs{color:var(--muted);font-weight:500}
@@ -1250,6 +1269,8 @@ main section,.finale{scroll-margin-top:90px}
 .esp-cal-ev{font-size:.66rem;padding:.12rem .3rem;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .esp-cal-ev.esp-training{background:rgba(125,92,255,.22);color:var(--lavender)}
 .esp-cal-ev.esp-match{background:rgba(255,70,85,.22);color:#ff9aa2}
+.esp-cal-ev.esp-scrim{background:rgba(246,201,92,.22);color:#f6c95c}
+.esp-cal-ev.esp-competition{background:rgba(91,208,141,.22);color:#7fe0a6}
 @media(max-width:560px){.esp-cal-cell{min-height:56px}.esp-cal-ev{font-size:.58rem}}
 /* Roster */
 .esp-roster{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem}
