@@ -870,3 +870,21 @@ alter table public.bu_documents enable row level security;
 drop policy if exists "bu_documents_bureau_all" on public.bu_documents;
 create policy "bu_documents_bureau_all" on public.bu_documents
   for all to authenticated using (public.is_bureau()) with check (public.is_bureau());
+
+-- Convocations (phase 3) — voir sql-equipe-phase3.sql
+  id         uuid primary key default gen_random_uuid(),
+  session_id uuid not null references public.sessions(id) on delete cascade,
+  user_id    uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz default now(),
+  unique (session_id, user_id)
+);
+alter table public.convocations enable row level security;
+
+-- Tout le monde (connecté) peut voir les convocations ; seul le staff les gère.
+drop policy if exists convocations_read on public.convocations;
+create policy convocations_read on public.convocations
+  for select to authenticated using (true);
+
+drop policy if exists convocations_staff_write on public.convocations;
+create policy convocations_staff_write on public.convocations
+  for all to authenticated using (public.is_staff()) with check (public.is_staff());

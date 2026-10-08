@@ -61,3 +61,10 @@ export type Availability = {
   status: "yes" | "no" | "maybe";
   updated_at: string;
 };
+
+// Convocation : le staff désigne les joueurs appelés pour une séance/match.
+export type Convocation = {
+  id?: string;
+  session_id: string;
+  user_id: string;
+};

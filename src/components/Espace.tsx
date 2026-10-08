@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { getSupabase, SUPABASE_ENABLED } from "@/lib/supabase";
-import type { Profile, Seance, Availability, SessionType, Announcement, Lineup } from "@/lib/espace-types";
+import type { Profile, Seance, Availability, SessionType, Announcement, Lineup, Convocation } from "@/lib/espace-types";
 import SocialLinks from "./SocialIcons";
 
 const supabase = getSupabase();
@@ -50,7 +50,7 @@ function downloadICS(seances: Seance[], teamName: string) {
   for (const s of seances) {
     const start = new Date(s.starts_at);
     const end = new Date(start.getTime() + 2 * 3600 * 1000);
-    const title = (s.type === "match" ? "Match" : "Entraînement") + (s.title ? ` — ${s.title}` : "") + (s.opponent ? ` vs ${s.opponent}` : "");
+    const title = sessionTypeLabel(s.type) + (s.title ? ` — ${s.title}` : "") + (s.opponent ? ` vs ${s.opponent}` : "");
     lines.push("BEGIN:VEVENT", `UID:${s.id}@edenesport.fr`, `DTSTAMP:${now}`, `DTSTART:${dt(s.starts_at)}`, `DTEND:${dt(end.toISOString())}`, `SUMMARY:${esc(title)}`);
     if (s.location) lines.push(`LOCATION:${esc(s.location)}`);
     if (s.notes) lines.push(`DESCRIPTION:${esc(s.notes)}`);
@@ -335,16 +335,27 @@ const STATUS = [
   { key: "no", label: "Absent", cls: "no" },
 ] as const;
 
+async function toggleConvocation(sessionId: string, userId: string, on: boolean) {
+  if (!supabase) return;
+  if (on) await supabase.from("convocations").upsert({ session_id: sessionId, user_id: userId }, { onConflict: "session_id,user_id" });
+  else await supabase.from("convocations").delete().eq("session_id", sessionId).eq("user_id", userId);
+}
+
 function SeanceCard({
-  s, me, isStaff, avails, profiles, members, lineups, onRsvp, onDelete, onChange,
+  s, me, isStaff, avails, profiles, members, lineups, convocations, onRsvp, onDelete, onChange,
 }: {
   s: Seance; me: string; isStaff: boolean;
   avails: Availability[]; profiles: Record<string, Profile>;
-  members: Record<string, Profile>; lineups: Lineup[];
+  members: Record<string, Profile>; lineups: Lineup[]; convocations: Convocation[];
   onRsvp: (sessionId: string, status: "yes" | "no" | "maybe") => void;
   onDelete: (id: string) => void; onChange: () => void;
 }) {
   const [showList, setShowList] = useState(false);
+  const [showConv, setShowConv] = useState(false);
+  const convoked = convocations.filter((c) => c.session_id === s.id);
+  const convokedIds = new Set(convoked.map((c) => c.user_id));
+  const iAmConvoked = convokedIds.has(me);
+  const memberList = Object.values(members).sort((a, b) => (a.pseudo || "").localeCompare(b.pseudo || ""));
   const mine = avails.find((a) => a.session_id === s.id && a.user_id === me)?.status;
   const forS = avails.filter((a) => a.session_id === s.id);
   const count = (st: string) => forS.filter((a) => a.status === st).length;
@@ -364,6 +375,34 @@ function SeanceCard({
 
       {isCompetitive(s.type) && teamGame(s.team) !== "tft" && (
         <MatchCompo s={s} isStaff={isStaff} members={members} lineups={lineups} onChange={onChange} />
+      )}
+
+      {/* Convocations (staff désigne les joueurs appelés) */}
+      {isStaff && (
+        <div className="esp-conv">
+          <button type="button" className="esp-toggle" onClick={() => setShowConv((v) => !v)}>
+            {showConv ? "Fermer les convocations" : `Convoquer des joueurs (${convoked.length})`}
+          </button>
+          {showConv && (
+            <div className="esp-conv-list">
+              {memberList.length === 0 ? (
+                <p className="muted" style={{ fontSize: ".85rem" }}>Aucun joueur dans cette équipe.</p>
+              ) : memberList.map((m) => (
+                <label key={m.id} className="esp-conv-item">
+                  <input type="checkbox" checked={convokedIds.has(m.id)}
+                    onChange={async (e) => { await toggleConvocation(s.id, m.id, e.target.checked); onChange(); }} />
+                  <span>{m.pseudo}</span>
+                </label>
+              ))}
+            </div>
+          )}
+          {convoked.length > 0 && !showConv && (
+            <p className="esp-conv-names">Convoqués : {convoked.map((c) => profiles[c.user_id]?.pseudo || "—").join(", ")}</p>
+          )}
+        </div>
+      )}
+      {!isStaff && iAmConvoked && (
+        <div className="esp-conv-you">📣 Tu es convoqué·e pour cette séance — confirme ta présence.</div>
       )}
 
       {/* Ma réponse */}
@@ -1207,16 +1246,69 @@ function GlobalPlanning({ seances, isStaff, onDelete, onChange }: {
 }
 
 /* ------------------------------------------------------------------ */
+/*  MON PLANNING — ce qui concerne le joueur connecté                  */
+/* ------------------------------------------------------------------ */
+function MonPlanning({ me, seances, avails, convocations, onRsvp }: {
+  me: Profile; seances: Seance[]; avails: Availability[]; convocations: Convocation[];
+  onRsvp: (id: string, st: "yes" | "no" | "maybe") => void;
+}) {
+  const myTeam = teamKey(me.team);
+  const now = Date.now();
+  const convSet = new Set(convocations.filter((c) => c.user_id === me.id).map((c) => c.session_id));
+  const mine = seances
+    .filter((s) => new Date(s.starts_at).getTime() > now - 3 * 3600 * 1000)
+    .filter((s) => teamKey(s.team) === myTeam || convSet.has(s.id))
+    .sort((a, b) => +new Date(a.starts_at) - +new Date(b.starts_at));
+  const myStatus = (id: string) => avails.find((a) => a.session_id === id && a.user_id === me.id)?.status;
+
+  return (
+    <div>
+      <div className="esp-block-head" style={{ marginBottom: "1rem" }}>
+        <h2>Mon planning</h2>
+        {mine.length > 0 && <button className="btn btn--sm" onClick={() => downloadICS(mine, me.pseudo || "perso")}>📅 Ajouter à mon agenda</button>}
+      </div>
+      {mine.length === 0 ? (
+        <div className="esp-card esp-center"><p className="muted">Rien de prévu pour toi pour l&apos;instant.</p></div>
+      ) : (
+        <div className="esp-glist">
+          {mine.map((s) => {
+            const convoked = convSet.has(s.id);
+            const st = myStatus(s.id);
+            const def = teamDef(s.team);
+            return (
+              <div key={s.id} className="esp-card esp-mine-row">
+                <div className="esp-mine-top">
+                  <span className="esp-gtime">{fmtDate(s.starts_at)} · {fmtHour(s.starts_at)}</span>
+                  <span className={"esp-badge esp-" + s.type}>{sessionTypeLabel(s.type)}</span>
+                  {convoked && <span className="esp-badge esp-conv-badge">📣 Convoqué</span>}
+                </div>
+                <div className="esp-mine-title">{def?.short ? def.short + " · " : ""}{s.title}{s.opponent ? <em> vs {s.opponent}</em> : null}{s.location ? <span className="muted"> · {s.location}</span> : null}</div>
+                <div className="esp-rsvp">
+                  {STATUS.map((x) => (
+                    <button key={x.key} type="button" className={"esp-rsvp-btn esp-" + x.cls + (st === x.key ? " on" : "")} onClick={() => onRsvp(s.id, x.key)}>{x.label}</button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Tableau de bord (connecté)                                         */
 /* ------------------------------------------------------------------ */
 function Dashboard({ profile, onLogout }: { profile: Profile; onLogout: () => void }) {
-  const [tab, setTab] = useState<"home" | "global" | "seances" | "week" | "calendar" | "compos" | "team">("home");
+  const [tab, setTab] = useState<"home" | "global" | "mine" | "seances" | "week" | "calendar" | "compos" | "team">("home");
   const [team, setTeam] = useState<string>(teamKey(profile.team) || TEAMS[0].key);
   const [seances, setSeances] = useState<Seance[]>([]);
   const [avails, setAvails] = useState<Availability[]>([]);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
   const [anns, setAnns] = useState<Announcement[]>([]);
   const [lineups, setLineups] = useState<Lineup[]>([]);
+  const [convocations, setConvocations] = useState<Convocation[]>([]);
   const [loading, setLoading] = useState(true);
   const isStaff = profile.role === "staff";
 
@@ -1224,12 +1316,13 @@ function Dashboard({ profile, onLogout }: { profile: Profile; onLogout: () => vo
     if (!supabase) return;
     setLoading(true);
     const since = new Date(Date.now() - 40 * 24 * 3600 * 1000).toISOString();
-    const [ssR, avR, prof, annR, luR] = await Promise.all([
+    const [ssR, avR, prof, annR, luR, cvR] = await Promise.all([
       supabase.from("sessions").select("*").gte("starts_at", since).order("starts_at", { ascending: true }),
       supabase.from("availabilities").select("*"),
       fetchProfiles(),
       supabase.from("announcements").select("*").order("created_at", { ascending: false }),
       supabase.from("match_lineup").select("*"),
+      supabase.from("convocations").select("*"),
     ]);
     setSeances((ssR.data as Seance[]) || []);
     setAvails((avR.data as Availability[]) || []);
@@ -1238,6 +1331,7 @@ function Dashboard({ profile, onLogout }: { profile: Profile; onLogout: () => vo
     setProfiles(map);
     setAnns((annR.data as Announcement[]) || []);
     setLineups((luR.data as Lineup[]) || []);
+    setConvocations((cvR.data as Convocation[]) || []);
     setLoading(false);
   }, []);
 
@@ -1277,6 +1371,7 @@ function Dashboard({ profile, onLogout }: { profile: Profile; onLogout: () => vo
   const TABS: { key: typeof tab; label: string }[] = [
     { key: "home", label: "Accueil" },
     { key: "global", label: "Planning global" },
+    { key: "mine", label: "Mon planning" },
     { key: "seances", label: "Séances" },
     { key: "week", label: "Dispos semaine" },
     { key: "calendar", label: "Calendrier" },
@@ -1331,7 +1426,7 @@ function Dashboard({ profile, onLogout }: { profile: Profile; onLogout: () => vo
             <div className="esp-list">
               {upcoming.map((s) => (
                 <SeanceCard key={s.id} s={s} me={profile.id} isStaff={isStaff}
-                  avails={avails} profiles={profiles} members={teamMembers} lineups={lineups}
+                  avails={avails} profiles={profiles} members={teamMembers} lineups={lineups} convocations={convocations}
                   onRsvp={onRsvp} onDelete={onDelete} onChange={load} />
               ))}
             </div>
@@ -1340,6 +1435,7 @@ function Dashboard({ profile, onLogout }: { profile: Profile; onLogout: () => vo
       )}
 
       {tab === "global" && <GlobalPlanning seances={seances} isStaff={isStaff} onDelete={onDelete} onChange={load} />}
+      {tab === "mine" && <MonPlanning me={me} seances={seances} avails={avails} convocations={convocations} onRsvp={onRsvp} />}
       {tab === "week" && <WeeklyAvailability profile={me} profiles={teamMembers} />}
       {tab === "calendar" && <CalendarView seances={seances} team={team} />}
       {tab === "compos" && <CompoView team={team} isStaff={isStaff} meId={profile.id} members={teamMembers} />}

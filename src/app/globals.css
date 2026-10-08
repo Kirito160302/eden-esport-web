@@ -1182,6 +1182,18 @@ main section,.finale{scroll-margin-top:90px}
 .esp-gtitle em{font-style:normal;color:var(--lavender)}
 .esp-gdel{margin-left:auto;background:none;border:none;color:#c96;cursor:pointer;font-size:.95rem;opacity:.6}
 .esp-gdel:hover{opacity:1}
+/* Convocations */
+.esp-conv{margin:.6rem 0}
+.esp-conv-list{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.5rem}
+.esp-conv-item{display:flex;align-items:center;gap:.35rem;font-size:.86rem;background:var(--surface-2);border:1px solid var(--line-2);border-radius:8px;padding:.3rem .55rem;cursor:pointer}
+.esp-conv-names{font-size:.82rem;color:var(--muted);margin:.4rem 0 0}
+.esp-conv-you{margin:.6rem 0;padding:.5rem .7rem;border-radius:8px;background:rgba(246,201,92,.14);color:#f6c95c;font-size:.86rem;font-weight:600}
+.esp-conv-badge{background:rgba(246,201,92,.18);color:#f6c95c}
+/* Mon planning */
+.esp-mine-row{display:flex;flex-direction:column;gap:.5rem}
+.esp-mine-top{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+.esp-mine-title{font-size:.92rem}
+.esp-mine-title em{font-style:normal;color:var(--lavender)}
 .esp-date{font-size:.85rem;color:var(--muted);text-transform:capitalize}
 .esp-seance h3{font-size:1.15rem;margin:.1rem 0}
 .esp-vs{color:var(--muted);font-weight:500}
