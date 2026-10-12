@@ -7,17 +7,18 @@
    ================================================================ */
 import { useEffect, useState, useCallback, useRef } from "react";
 import { getSupabase } from "@/lib/supabase";
+import { BattleRoyaleAdmin, BattleRoyaleLive, type BRResult } from "./BattleRoyale";
 
 const supabase = getSupabase();
 const BYE = "BYE";
 
-export type Format = "single_elim" | "double_elim" | "round_robin" | "groups_knockout" | "freeplay";
+export type Format = "single_elim" | "double_elim" | "round_robin" | "groups_knockout" | "freeplay" | "battle_royale";
 export type Tournament = {
   id: string; name: string; game: string | null; format: Format;
   team_mode: boolean; status: "draft" | "open" | "running" | "done";
   is_public: boolean; event_label: string | null; created_at?: string;
 };
-export type TParticipant = { id: string; tournament_id: string; name: string; seed: number; group_no: number | null };
+export type TParticipant = { id: string; tournament_id: string; name: string; seed: number; group_no: number | null; br_phase?: string | null };
 export type TMatch = {
   id: string; tournament_id: string; bracket: string | null; round: number; slot: number;
   p1_id: string | null; p2_id: string | null; winner_id: string | null;
@@ -150,6 +151,7 @@ const FORMATS: { key: Format; label: string }[] = [
   { key: "double_elim", label: "Double élimination" },
   { key: "round_robin", label: "Championnat (toutes rondes)" },
   { key: "groups_knockout", label: "Poules + phase finale" },
+  { key: "battle_royale", label: "Battle Royale (points / manches)" },
   { key: "freeplay", label: "Free play (liste simple)" },
 ];
 const formatLabel = (f: string) => FORMATS.find((x) => x.key === f)?.label || f;
@@ -451,7 +453,7 @@ export function TournoisModule() {
             {parts.map((p, i) => <span className="brk-pchip" key={p.id}><b>{i + 1}.</b> {p.name}<button onClick={() => delP(p.id)} title="Retirer">✕</button></span>)}
             {parts.length === 0 && <span className="bu-muted">Ajoute les joueurs/équipes.</span>}
           </div>
-          {sel.format !== "freeplay" && (
+          {sel.format !== "freeplay" && sel.format !== "battle_royale" && (
             <div style={{ marginTop: ".8rem", display: "flex", gap: ".6rem", flexWrap: "wrap", alignItems: "center" }}>
               {sel.format === "groups_knockout" && (
                 <label className="bu-muted" style={{ fontSize: ".85rem", display: "flex", gap: ".4rem", alignItems: "center" }}>
@@ -468,7 +470,11 @@ export function TournoisModule() {
           )}
         </div>
 
-        {sel.format !== "freeplay" && matches.length > 0 && (
+        {sel.format === "battle_royale" && (
+          <BattleRoyaleAdmin t={sel} parts={parts} reload={() => { loadOne(sel.id); loadList(); }} />
+        )}
+
+        {sel.format !== "freeplay" && sel.format !== "battle_royale" && matches.length > 0 && (
           <div style={{ marginTop: "1.2rem" }}>
             <TournamentView t={sel} parts={parts} matches={matches} editable onResult={onResult} />
             <p className="bu-muted" style={{ fontSize: ".82rem", marginTop: ".6rem" }}>
@@ -513,6 +519,7 @@ export default function TournamentLive({ id }: { id: string }) {
   const [t, setT] = useState<Tournament | null>(null);
   const [parts, setParts] = useState<TParticipant[]>([]);
   const [matches, setMatches] = useState<TMatch[]>([]);
+  const [brRes, setBrRes] = useState<BRResult[]>([]);
   const [state, setState] = useState<"loading" | "ok" | "notfound">("loading");
   const timer = useRef<number | null>(null);
 
@@ -520,11 +527,13 @@ export default function TournamentLive({ id }: { id: string }) {
     if (!supabase) { setState("notfound"); return; }
     const tr = await supabase.from("tournaments").select("*").eq("id", id).maybeSingle();
     if (!tr.data) { setState("notfound"); return; }
-    const [p, m] = await Promise.all([
+    const [p, m, br] = await Promise.all([
       supabase.from("tournament_participants").select("*").eq("tournament_id", id).order("seed"),
       supabase.from("tournament_matches").select("*").eq("tournament_id", id).order("round").order("slot"),
+      supabase.from("br_results").select("*").eq("tournament_id", id).order("round_no").order("lobby_no"),
     ]);
-    setT(tr.data as Tournament); setParts((p.data as TParticipant[]) || []); setMatches((m.data as TMatch[]) || []); setState("ok");
+    setT(tr.data as Tournament); setParts((p.data as TParticipant[]) || []); setMatches((m.data as TMatch[]) || []);
+    setBrRes((br.data as BRResult[]) || []); setState("ok");
   }, [id]);
 
   useEffect(() => { load(); timer.current = window.setInterval(load, 12000); return () => { if (timer.current) window.clearInterval(timer.current); }; }, [load]);
@@ -533,6 +542,7 @@ export default function TournamentLive({ id }: { id: string }) {
   if (state === "notfound" || !t) return <div className="tlive"><p className="tlive-msg">Tournoi introuvable.</p></div>;
 
   const champ = (() => {
+    if (t.format === "battle_royale" || t.format === "freeplay") return null;
     if (t.format === "round_robin") { const r = standings(matches.filter((m) => m.bracket === "RR"), parts.map((p) => p.id)); return matches.some((m) => m.winner_id) && r[0] ? parts.find((p) => p.id === r[0].id)?.name : null; }
     const last = (t.format === "double_elim" ? matches.filter((m) => m.bracket === "GF") : matches.filter((m) => m.bracket === "W")).slice(-1)[0];
     return last?.winner_id ? parts.find((p) => p.id === last.winner_id)?.name : null;
@@ -546,7 +556,9 @@ export default function TournamentLive({ id }: { id: string }) {
         <p>{t.game || ""}{t.game ? " · " : ""}{formatLabel(t.format)} · {parts.length} participants</p>
         {champ && <div className="tlive-champ">🏆 Vainqueur : <strong>{champ}</strong></div>}
       </header>
-      <TournamentView t={t} parts={parts} matches={matches} editable={false} />
+      {t.format === "battle_royale"
+        ? <BattleRoyaleLive t={t} parts={parts} results={brRes} />
+        : <TournamentView t={t} parts={parts} matches={matches} editable={false} />}
       <footer className="tlive-foot">Mise à jour automatique · edenesport.fr</footer>
     </div>
   );

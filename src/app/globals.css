@@ -1773,3 +1773,25 @@ textarea.esp-input{min-height:64px;resize:vertical}
 .tlive .brk-secth,.tlive .brk-h4{color:#b89cff}
 .tlive .brk-groups{max-width:1100px;margin:0 auto}
 .tlive .brk-rrwrap{margin:0 auto}
+
+/* ===== BATTLE ROYALE (points / manches) ===== */
+.br-cfg{display:flex;flex-wrap:wrap;gap:.8rem}
+.br-cfg label{display:flex;flex-direction:column;gap:.25rem;font-size:.78rem;color:var(--muted)}
+.br-cfg input{width:110px;font:inherit;font-size:.88rem;padding:.35rem .5rem;border-radius:8px;border:1px solid var(--line-2);background:var(--surface-2,#1c1930);color:var(--text)}
+.br-phasenav{display:flex;gap:.5rem;margin:1rem 0 .4rem;flex-wrap:wrap}
+.br-phasetab{font-size:.78rem;font-weight:700;padding:.35rem .8rem;border-radius:999px;border:1px solid var(--line-2);color:var(--muted)}
+.br-phasetab.on{background:var(--violet,#7d5cff);border-color:var(--violet,#7d5cff);color:#fff}
+.br-lobbies{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.9rem;margin-top:.9rem}
+.br-lobby{background:var(--surface-2,#1c1930);border:1px solid var(--line-2);border-radius:10px;padding:.7rem .8rem}
+.br-lobby-h{font-weight:700;font-size:.85rem;margin-bottom:.5rem}
+.br-lobrow{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.25rem 0;font-size:.86rem;border-bottom:1px solid var(--line-2)}
+.br-lobrow:last-of-type{border-bottom:none}
+.br-lobnm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.br-lobpl{color:var(--lavender);font-weight:600;font-size:.8rem;white-space:nowrap}
+.br-plin{width:58px;font:inherit;font-size:.82rem;padding:.2rem .4rem;border-radius:6px;border:1px solid var(--line-2);background:var(--surface,#14121f);color:var(--text)}
+.br-lobby .bu-btn{margin-top:.6rem}
+.br-live-sub{text-align:center;color:#b89cff;font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:.8rem;margin-bottom:1rem}
+.br-live-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:1.6rem;max-width:1100px;margin:0 auto;align-items:start}
+@media (max-width:760px){.br-live-grid{grid-template-columns:1fr}}
+.tlive .br-lobby{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.1)}
+.tlive .br-lobrow{border-color:rgba(255,255,255,.08)}
