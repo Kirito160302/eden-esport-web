@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef, Fragment } from "react";
 import { getSupabase, SUPABASE_ENABLED } from "@/lib/supabase";
+import { TournoisModule } from "./Tournois";
 
 const supabase = getSupabase();
 
@@ -1047,6 +1048,9 @@ const SECTIONS: Section[] = [
     { key: "orga", label: "Organisation", render: () => <Crud table="event_tasks" fields={eventTaskFields} /> },
     docSub("events", DOC_CATS_EVENTS),
   ] },
+  { key: "tournois", icon: "🏆", label: "Tournois", subs: [
+    { key: "t", label: "Gestion des tournois", render: () => <TournoisModule /> },
+  ] },
   { key: "docs", icon: "📄", label: "Documents", subs: DOC_CATS.map((c) => ({
     key: c, label: c, render: () => c === "Subvention"
       ? <Crud table="subventions" fields={subventionFields} orderBy="due_date" desc={false} />
@@ -1152,8 +1156,8 @@ const ROLE_ACCESS: Record<string, string[]> = {
   "Trésorier": ["dash", "adherents", "finance", "messagerie"],
   "Secrétaire": ["dash", "docs", "messagerie"],
   "Responsable esport": ["dash", "teams", "messagerie"],
-  "Responsable événements": ["dash", "events", "material", "messagerie"],
-  "Bénévole": ["dash", "events", "messagerie"],
+  "Responsable événements": ["dash", "events", "tournois", "material", "messagerie"],
+  "Bénévole": ["dash", "events", "tournois", "messagerie"],
 };
 function sectionsForRole(role?: string | null): string[] {
   if (!role || role === "Président") return SECTIONS.map((s) => s.key); // accès complet
