@@ -1739,3 +1739,37 @@ textarea.esp-input{min-height:64px;resize:vertical}
 .tlive-pp{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:.6rem .9rem}
 .tlive-pp b{color:#b89cff;margin-right:.6rem}
 .tlive-foot{text-align:center;color:#6d6a86;font-size:.8rem;margin-top:2rem}
+
+/* ===== TOURNOIS — formats additionnels ===== */
+.brk-secth{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--lavender);margin:1.3rem 0 .2rem}
+.brk-h4{font-size:.95rem;font-weight:700;margin:1rem 0 .5rem}
+.brk-numin{font:inherit;padding:.3rem .4rem;border-radius:7px;border:1px solid var(--line-2);background:var(--surface-2,#1c1930);color:var(--text)}
+/* Classement */
+.brk-rank{width:100%;border-collapse:collapse;font-size:.86rem;margin-bottom:.8rem}
+.brk-rank th{text-align:center;padding:.4rem .5rem;color:var(--muted);font-weight:600;font-size:.72rem;text-transform:uppercase;letter-spacing:.03em;border-bottom:1px solid var(--line-2)}
+.brk-rank th:nth-child(2){text-align:left}
+.brk-rank td{text-align:center;padding:.4rem .5rem;border-bottom:1px solid var(--line-2);font-variant-numeric:tabular-nums}
+.brk-rank td.nm{text-align:left;font-weight:600}
+.brk-rank tr.qual td{background:rgba(91,208,141,.08)}
+.brk-rank tr.qual td:first-child{box-shadow:inset 3px 0 0 var(--done,#5bd08d)}
+/* Liste de matchs */
+.brk-ml{display:flex;flex-direction:column;gap:.4rem}
+.brk-mlrow{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;background:var(--surface,#14121f);border:1px solid var(--line-2);border-radius:9px;padding:.4rem .6rem;font-size:.86rem}
+.brk-mlrow.done{border-color:rgba(91,208,141,.3)}
+.brk-mlp{flex:1;text-align:right;min-width:90px}
+.brk-mlp.r{text-align:left}
+.brk-mlp.win{font-weight:700;color:var(--text)}
+.brk-mlvs{color:var(--muted);font-variant-numeric:tabular-nums;min-width:34px;text-align:center}
+.brk-mled{display:flex;gap:.3rem;flex-wrap:wrap;width:100%}
+.brk-mled input{width:70px;font:inherit;font-size:.8rem;padding:.2rem .4rem;border-radius:6px;border:1px solid var(--line-2);background:var(--surface-2,#1c1930);color:var(--text)}
+/* Poules */
+.brk-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.2rem}
+.brk-group{background:var(--surface,#14121f);border:1px solid var(--line-2);border-radius:12px;padding:.9rem 1rem}
+.brk-rrwrap{max-width:720px}
+/* Vue publique : adapter les tables sombres */
+.tlive .brk-rank th{color:#a3a0ba;border-color:rgba(255,255,255,.1)}
+.tlive .brk-rank td{border-color:rgba(255,255,255,.08)}
+.tlive .brk-group,.tlive .brk-mlrow{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.1)}
+.tlive .brk-secth,.tlive .brk-h4{color:#b89cff}
+.tlive .brk-groups{max-width:1100px;margin:0 auto}
+.tlive .brk-rrwrap{margin:0 auto}

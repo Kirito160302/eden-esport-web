@@ -98,6 +98,9 @@ export default function Header() {
   // Ferme les menus à chaque changement de page
   useEffect(() => { setOpen(false); setOpenSub(null); }, [pathname]);
 
+  // Vue publique des tournois = plein écran (pas d'en-tête de site)
+  if (/^\/tournoi(\/|$)/.test(pathname)) return null;
+
   return (
     <>
       <header className={"header" + (scrolled ? " scrolled" : "")} data-theme={internal ? "dark" : undefined}>

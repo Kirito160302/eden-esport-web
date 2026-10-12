@@ -1,4 +1,6 @@
+"use client";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 const COLS: { title: string; links: [string, string][] }[] = [
   { title: "Eden", links: [["À propos", "/eden"], ["Notre histoire", "/eden"], ["Notre équipe", "/notre-equipe"], ["Rejoindre Eden", "/rejoindre"]] },
@@ -8,6 +10,8 @@ const COLS: { title: string; links: [string, string][] }[] = [
 ];
 
 export default function Footer() {
+  const pathname = usePathname() || "/";
+  if (/^\/tournoi(\/|$)/.test(pathname)) return null; // vue publique tournoi = plein écran
   return (
     <footer className="footer" aria-label="Pied de page">
       <div className="wrap">
