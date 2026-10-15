@@ -1795,3 +1795,4 @@ textarea.esp-input{min-height:64px;resize:vertical}
 @media (max-width:760px){.br-live-grid{grid-template-columns:1fr}}
 .tlive .br-lobby{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.1)}
 .tlive .br-lobrow{border-color:rgba(255,255,255,.08)}
+.br-live-gh{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#b89cff;margin-bottom:.3rem}
