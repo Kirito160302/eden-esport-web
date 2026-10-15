@@ -1796,3 +1796,30 @@ textarea.esp-input{min-height:64px;resize:vertical}
 .tlive .br-lobby{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.1)}
 .tlive .br-lobrow{border-color:rgba(255,255,255,.08)}
 .br-live-gh{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#b89cff;margin-bottom:.3rem}
+
+/* ===== Clash Royale 1v1 (suisse + poules + arbre) ===== */
+.cr-duels{display:flex;flex-direction:column;gap:.5rem}
+.cr-duel{background:var(--surface,#14121f);border:1px solid var(--line-2);border-radius:10px;overflow:hidden}
+.cr-duel.done{border-color:rgba(91,208,141,.4)}
+.cr-side{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.4rem .7rem;font-size:.86rem}
+.cr-side+.cr-side{border-top:1px solid var(--line-2)}
+.cr-side .cr-nm{font-weight:600}
+.cr-side.win{background:rgba(91,208,141,.1)}
+.cr-side.win .cr-nm{color:var(--done,#5bd08d)}
+.cr-g{font-variant-numeric:tabular-nums;font-weight:800;min-width:1.2em;text-align:center}
+.cr-form{padding:.5rem .7rem;border-top:1px dashed var(--line-2);display:flex;flex-direction:column;gap:.4rem}
+.cr-form-ln{display:flex;align-items:center;gap:.4rem}
+.cr-form-lb{font-size:.74rem;color:var(--muted);width:4.5rem}
+.cr-in{width:3rem;text-align:center;font:inherit;font-size:.86rem;padding:.25rem;border-radius:7px;border:1px solid var(--line-2);background:var(--surface-2,#1c1930);color:var(--text)}
+.cr-form-act{display:flex;gap:.4rem;margin-top:.2rem}
+.cr-poules{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.1rem}
+@media (max-width:640px){.cr-poules{grid-template-columns:1fr}}
+.cr-poule{background:var(--surface-2,#1c1930);border:1px solid var(--line-2);border-radius:12px;padding:.8rem .9rem}
+.cr-arbre{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1.2rem;align-items:start}
+@media (max-width:640px){.cr-arbre{grid-template-columns:1fr}}
+.cr-col{display:flex;flex-direction:column;gap:.6rem}
+.cr-col-h{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#b89cff}
+.cr-col-h.cr-petite{margin-top:1rem;color:#d7b36a}
+.tlive .cr-duel{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.1)}
+.tlive .cr-side+.cr-side{border-color:rgba(255,255,255,.08)}
+.tlive .cr-poule{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.1)}

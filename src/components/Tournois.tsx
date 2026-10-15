@@ -8,11 +8,12 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { getSupabase } from "@/lib/supabase";
 import { BattleRoyaleAdmin, BattleRoyaleLive, type BRResult } from "./BattleRoyale";
+import { ClashRoyaleAdmin, ClashRoyaleLive } from "./ClashRoyale";
 
 const supabase = getSupabase();
 const BYE = "BYE";
 
-export type Format = "single_elim" | "double_elim" | "round_robin" | "groups_knockout" | "freeplay" | "battle_royale";
+export type Format = "single_elim" | "double_elim" | "round_robin" | "groups_knockout" | "freeplay" | "battle_royale" | "clash_1v1";
 export type Tournament = {
   id: string; name: string; game: string | null; format: Format;
   team_mode: boolean; status: "draft" | "open" | "running" | "done";
@@ -152,6 +153,7 @@ const FORMATS: { key: Format; label: string }[] = [
   { key: "round_robin", label: "Championnat (toutes rondes)" },
   { key: "groups_knockout", label: "Poules + phase finale" },
   { key: "battle_royale", label: "Battle Royale (points / manches)" },
+  { key: "clash_1v1", label: "Clash Royale 1v1 (suisse + poules + arbre)" },
   { key: "freeplay", label: "Free play (liste simple)" },
 ];
 const formatLabel = (f: string) => FORMATS.find((x) => x.key === f)?.label || f;
@@ -453,7 +455,7 @@ export function TournoisModule() {
             {parts.map((p, i) => <span className="brk-pchip" key={p.id}><b>{i + 1}.</b> {p.name}<button onClick={() => delP(p.id)} title="Retirer">✕</button></span>)}
             {parts.length === 0 && <span className="bu-muted">Ajoute les joueurs/équipes.</span>}
           </div>
-          {sel.format !== "freeplay" && sel.format !== "battle_royale" && (
+          {sel.format !== "freeplay" && sel.format !== "battle_royale" && sel.format !== "clash_1v1" && (
             <div style={{ marginTop: ".8rem", display: "flex", gap: ".6rem", flexWrap: "wrap", alignItems: "center" }}>
               {sel.format === "groups_knockout" && (
                 <label className="bu-muted" style={{ fontSize: ".85rem", display: "flex", gap: ".4rem", alignItems: "center" }}>
@@ -474,7 +476,11 @@ export function TournoisModule() {
           <BattleRoyaleAdmin t={sel} parts={parts} reload={() => { loadOne(sel.id); loadList(); }} />
         )}
 
-        {sel.format !== "freeplay" && sel.format !== "battle_royale" && matches.length > 0 && (
+        {sel.format === "clash_1v1" && (
+          <ClashRoyaleAdmin t={sel} parts={parts} matches={matches} reload={() => { loadOne(sel.id); loadList(); }} />
+        )}
+
+        {sel.format !== "freeplay" && sel.format !== "battle_royale" && sel.format !== "clash_1v1" && matches.length > 0 && (
           <div style={{ marginTop: "1.2rem" }}>
             <TournamentView t={sel} parts={parts} matches={matches} editable onResult={onResult} />
             <p className="bu-muted" style={{ fontSize: ".82rem", marginTop: ".6rem" }}>
@@ -542,7 +548,7 @@ export default function TournamentLive({ id }: { id: string }) {
   if (state === "notfound" || !t) return <div className="tlive"><p className="tlive-msg">Tournoi introuvable.</p></div>;
 
   const champ = (() => {
-    if (t.format === "battle_royale" || t.format === "freeplay") return null;
+    if (t.format === "battle_royale" || t.format === "clash_1v1" || t.format === "freeplay") return null;
     if (t.format === "round_robin") { const r = standings(matches.filter((m) => m.bracket === "RR"), parts.map((p) => p.id)); return matches.some((m) => m.winner_id) && r[0] ? parts.find((p) => p.id === r[0].id)?.name : null; }
     const last = (t.format === "double_elim" ? matches.filter((m) => m.bracket === "GF") : matches.filter((m) => m.bracket === "W")).slice(-1)[0];
     return last?.winner_id ? parts.find((p) => p.id === last.winner_id)?.name : null;
@@ -558,6 +564,8 @@ export default function TournamentLive({ id }: { id: string }) {
       </header>
       {t.format === "battle_royale"
         ? <BattleRoyaleLive t={t} parts={parts} results={brRes} />
+        : t.format === "clash_1v1"
+        ? <ClashRoyaleLive t={t} parts={parts} matches={matches} />
         : <TournamentView t={t} parts={parts} matches={matches} editable={false} />}
       <footer className="tlive-foot">Mise à jour automatique · edenesport.fr</footer>
     </div>
