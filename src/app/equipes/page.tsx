@@ -5,6 +5,7 @@ import { TeamCard } from "@/components/cards";
 import Filterable from "@/components/Filterable";
 
 export const metadata: Metadata = { title: "Nos équipes" };
+export const revalidate = 120;
 
 export default async function EquipesPage() {
   const teams = await getTeams();

@@ -1823,3 +1823,10 @@ textarea.esp-input{min-height:64px;resize:vertical}
 .tlive .cr-duel{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.1)}
 .tlive .cr-side+.cr-side{border-color:rgba(255,255,255,.08)}
 .tlive .cr-poule{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.1)}
+
+/* ===== Rosters : miniatures bureau + bannière d'équipe ===== */
+.bu-thumb{width:40px;height:40px;border-radius:8px;object-fit:cover;object-position:top center;border:1px solid var(--line-2);vertical-align:middle;background:#1a1330}
+.bu-file .bu-thumb{width:48px;height:48px}
+.team-banner{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.22;pointer-events:none;-webkit-mask-image:linear-gradient(180deg,#000,transparent);mask-image:linear-gradient(180deg,#000,transparent)}
+.page-hero:has(.team-banner){position:relative;overflow:hidden}
+.page-hero:has(.team-banner) .wrap{position:relative;z-index:1}

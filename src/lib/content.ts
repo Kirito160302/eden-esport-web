@@ -9,6 +9,36 @@ import { PRODUCTS, type ShopProduct } from "./shop-data";
 import { PARTNERS, type Partner } from "./partners-data";
 import { EVENTS } from "./events-data";
 import { ESPORT, type EGame, type EPlayer } from "./esport-data";
+import { PUBLIC_TEAMS, teamByLabel } from "./public-teams";
+import { getRosterPlayers, getRosterTeams, type RosterPlayer } from "./roster-live";
+
+// ---- Rosters gérés depuis le bureau (table bu_players) ----
+function slugify(s: string): string {
+  return (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "joueur";
+}
+function initialsOf(s: string): string {
+  const parts = (s || "").trim().split(/\s+/);
+  return (parts.length > 1 ? parts[0][0] + parts[1][0] : (s || "?").slice(0, 2)).toUpperCase();
+}
+function rosterToPlayer(rp: RosterPlayer, used: Set<string>): Player {
+  const t = teamByLabel(rp.team);
+  let slug = slugify(rp.pseudo);
+  while (used.has(slug)) slug += "-x";
+  used.add(slug);
+  return {
+    slug, pseudo: rp.pseudo, name: rp.real_name && rp.real_name !== "—" ? rp.real_name : undefined,
+    role: rp.poste || "", game: t?.game || "", gameKey: t?.gameKey || "",
+    teamName: t?.name || rp.team || "", teamSlug: t?.slug || "", initials: initialsOf(rp.pseudo),
+    photo: rp.photo_url || undefined,
+    socials: rp.social ? [{ label: "Lien", url: rp.social }] : undefined,
+  };
+}
+// Joueurs publics issus du bureau (vide si rien n'est encore saisi).
+async function rosterPlayers(): Promise<Player[]> {
+  const rows = await getRosterPlayers();
+  const used = new Set<string>();
+  return rows.map((r) => rosterToPlayer(r, used));
+}
 
 // Équipes & joueurs : WordPress en priorité, sinon données de démonstration.
 async function rawTeams(): Promise<Team[]> {
@@ -24,32 +54,48 @@ async function rawPlayers(): Promise<Player[]> {
 // définie dans esport-data.ts, mais si des joueurs existent dans WordPress pour
 // un jeu, ils remplacent le roster de ce jeu. Sinon → roster du code.
 export async function getEsportGames(): Promise<EGame[]> {
+  // Priorité aux joueurs saisis dans le bureau, sinon WordPress, sinon démo.
+  const roster = await rosterPlayers();
+  const toE = (p: Player): EPlayer => ({ slug: p.slug, pseudo: p.pseudo, name: p.name, role: p.role, photo: p.photo, socials: p.socials });
+  if (roster.length) {
+    return ESPORT.map((g) => {
+      const r = roster.filter((p) => p.gameKey === g.key).map(toE);
+      return r.length ? { ...g, roster: r } : g;
+    });
+  }
   const wpP = await wp.wpPlayers();
   if (!wpP || !wpP.length) return ESPORT;
   return ESPORT.map((g) => {
-    const roster: EPlayer[] = wpP
-      .filter((p) => p.gameKey === g.key)
-      .map((p) => ({
-        slug: p.slug,
-        pseudo: p.pseudo,
-        name: p.name && p.name !== "—" ? p.name : undefined,
-        role: p.role,
-        photo: p.photo,
-        socials: p.socials,
-      }));
-    return roster.length ? { ...g, roster } : g;
+    const r: EPlayer[] = wpP.filter((p) => p.gameKey === g.key)
+      .map((p) => ({ slug: p.slug, pseudo: p.pseudo, name: p.name && p.name !== "—" ? p.name : undefined, role: p.role, photo: p.photo, socials: p.socials }));
+    return r.length ? { ...g, roster: r } : g;
   });
 }
 
+// Les équipes publiques sont la liste canonique (5) ; les rosters viennent
+// du bureau (bu_players), la bannière/slogan de bu_teams.
 export async function getTeams(): Promise<Team[]> {
-  const [teams, players] = await Promise.all([rawTeams(), rawPlayers()]);
-  return teams.map((t) => ({ ...t, roster: players.filter((p) => p.gameKey === t.gameKey) }));
+  const [players, metas] = await Promise.all([rosterPlayers(), getRosterTeams()]);
+  // bu_teams.slug stocke l'intitulé choisi dans le bureau (= label d'équipe)
+  const metaByKey = new Map(metas.map((m) => [m.slug, m]));
+  return PUBLIC_TEAMS.map((t) => {
+    const meta = metaByKey.get(t.label) || metaByKey.get(t.slug);
+    return {
+      slug: t.slug, game: t.game, gameKey: t.gameKey, name: t.name, status: t.status,
+      cls: t.cls, tier: t.tier, description: meta?.tagline || t.blurb, banner: meta?.banner_url || undefined,
+      roster: players.filter((p) => p.teamSlug === t.slug),
+      staff: [],
+    };
+  });
 }
 export async function getTeam(slug: string): Promise<Team | null> {
   return (await getTeams()).find((t) => t.slug === slug) ?? null;
 }
 
 export async function getPlayers(): Promise<Player[]> {
+  const roster = await rosterPlayers();
+  if (roster.length) return roster;
+  // fallback : WordPress/démo tant qu'aucun joueur n'est saisi dans le bureau
   const [players, teams] = await Promise.all([rawPlayers(), rawTeams()]);
   return players.map((p) => {
     const team = teams.find((t) => t.gameKey === p.gameKey);

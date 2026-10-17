@@ -10,6 +10,8 @@ export type Team = {
   description: string;
   roster: Player[];
   staff: { name: string; role: string }[];
+  tier?: string;         // niveau (Pro, Rising, Two…)
+  banner?: string;       // bannière d'équipe (URL)
 };
 
 export type Player = {

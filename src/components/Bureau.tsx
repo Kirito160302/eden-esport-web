@@ -9,7 +9,7 @@ const supabase = getSupabase();
 const eur = (n: number) => (Number(n) || 0).toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
 const fmtD = (d?: string) => (d ? new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }) : "");
 
-type Field = { key: string; label: string; type?: "text" | "number" | "date" | "select" | "bool" | "textarea" | "file"; options?: string[] };
+type Field = { key: string; label: string; type?: "text" | "number" | "date" | "select" | "bool" | "textarea" | "file" | "image"; options?: string[]; optionLabels?: Record<string, string> };
 
 /* ---- Stockage de fichiers (bucket privé « bureau ») ---- */
 async function uploadFile(file: File, folder: string): Promise<{ path: string; name: string } | null> {
@@ -19,6 +19,17 @@ async function uploadFile(file: File, folder: string): Promise<{ path: string; n
   const { error } = await supabase.storage.from("bureau").upload(path, file, { upsert: false });
   if (error) { alert("Envoi du fichier impossible : " + error.message); return null; }
   return { path, name: file.name };
+}
+
+/* ---- Stockage d'IMAGES publiques (bucket « roster ») → URL publique ---- */
+async function uploadPublicImage(file: File, folder: string): Promise<string | null> {
+  if (!supabase) return null;
+  if (file.size > 5 * 1024 * 1024) { alert("Image trop lourde (max 5 Mo)."); return null; }
+  const safe = file.name.replace(/[^\w.\-]+/g, "_");
+  const path = `${folder}/${crypto.randomUUID()}-${safe}`;
+  const { error } = await supabase.storage.from("roster").upload(path, file, { upsert: false, contentType: file.type });
+  if (error) { alert("Envoi de l'image impossible : " + error.message); return null; }
+  return supabase.storage.from("roster").getPublicUrl(path).data.publicUrl;
 }
 async function openFile(pathOrUrl: string) {
   if (!supabase || !pathOrUrl) return;
@@ -177,8 +188,12 @@ function Crud({ table, fields, defaults = {}, filter, orderBy = "created_at", de
         <td key={fl.key}>
           {fl.type === "bool" ? (
             <button className={"bu-chip " + (r[fl.key] ? "ok" : "no")} onClick={() => toggleBool(r, fl.key)}>{r[fl.key] ? "Oui" : "Non"}</button>
+          ) : fl.type === "image" ? (
+            r[fl.key] ? <img className="bu-thumb" src={r[fl.key] as string} alt="" /> : "—"
           ) : fl.type === "file" ? (
             r[fl.key] ? <button className="bu-edit" onClick={() => openFile(r[fl.key] as string)} title={fileLabel(r[fl.key] as string)}>📎 Voir</button> : "—"
+          ) : fl.type === "select" && fl.optionLabels ? (
+            fl.optionLabels[r[fl.key] as string] ?? ((r[fl.key] as string) ?? "")
           ) : fl.type === "number" ? (
             /amount|planned|montant|prix/.test(fl.key) ? eur(r[fl.key] as number) : (r[fl.key] as string) ?? ""
           ) : fl.type === "date" ? fmtD(r[fl.key] as string) : ((r[fl.key] as string) ?? "")}
@@ -215,8 +230,16 @@ function Crud({ table, fields, defaults = {}, filter, orderBy = "created_at", de
               ) : fl.type === "select" ? (
                 <select value={(f[fl.key] as string) || ""} onChange={(e) => setV(fl.key, e.target.value)}>
                   <option value="">—</option>
-                  {(fl.options || []).map((o) => <option key={o} value={o}>{o}</option>)}
+                  {(fl.options || []).map((o) => <option key={o} value={o}>{fl.optionLabels?.[o] ?? o}</option>)}
                 </select>
+              ) : fl.type === "image" ? (
+                <div className="bu-file">
+                  <input type="text" placeholder="URL de l'image…" value={(f[fl.key] as string) ?? ""} onChange={(e) => setV(fl.key, e.target.value)} />
+                  <label className="bu-btn bu-btn--ghost bu-btn--sm bu-filebtn" title="Envoyer une image">🖼️
+                    <input type="file" accept="image/*" hidden onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; const url = await uploadPublicImage(file, table); if (url) setV(fl.key, url); e.target.value = ""; }} />
+                  </label>
+                  {f[fl.key] ? <img className="bu-thumb" src={f[fl.key] as string} alt="" /> : null}
+                </div>
               ) : fl.type === "file" ? (
                 <div className="bu-file">
                   <input type="text" placeholder="Lien ou fichier…" value={(f[fl.key] as string) ?? ""} onChange={(e) => setV(fl.key, e.target.value)} />
@@ -976,11 +999,24 @@ const loanFields: Field[] = [
   { key: "condition", label: "État au retour" }, { key: "notes", label: "Notes", type: "textarea" },
 ];
 // — Priorité 3 : Équipes —
+// Équipes affichées sur le site public (mêmes intitulés que l'espace équipe)
+const PUBLIC_TEAM_LABELS = ["Valorant Pro", "Valorant Rising", "League of Legends Pro", "League of Legends Two", "TFT"];
 const playerFields: Field[] = [
-  { key: "pseudo", label: "Pseudo" }, { key: "real_name", label: "Nom" }, { key: "team", label: "Équipe" },
-  { key: "game", label: "Jeu" }, { key: "poste", label: "Poste" },
+  { key: "pseudo", label: "Pseudo" }, { key: "real_name", label: "Nom" },
+  { key: "team", label: "Équipe", type: "select", options: PUBLIC_TEAM_LABELS },
+  { key: "poste", label: "Poste" },
+  { key: "photo_url", label: "Photo", type: "image" },
+  { key: "social", label: "Réseau (lien Twitch / X…)" },
   { key: "status", label: "Statut", type: "select", options: ["Actif", "Remplaçant", "Essai", "Inactif"] },
+  { key: "is_public", label: "Afficher sur le site", type: "bool" },
+  { key: "sort", label: "Ordre", type: "number" },
   { key: "notes", label: "Infos internes", type: "textarea" },
+];
+const teamVitrineFields: Field[] = [
+  { key: "slug", label: "Équipe", type: "select", options: PUBLIC_TEAM_LABELS },
+  { key: "tagline", label: "Slogan / description courte" },
+  { key: "banner_url", label: "Bannière", type: "image" },
+  { key: "sort", label: "Ordre", type: "number" },
 ];
 const staffFields: Field[] = [
   { key: "name", label: "Nom" }, { key: "role", label: "Rôle" }, { key: "team", label: "Équipe" },
@@ -1070,7 +1106,8 @@ const SECTIONS: Section[] = [
     docSub("partners", DOC_CATS_PARTNERS),
   ] },
   { key: "teams", icon: "🎮", label: "Équipes", subs: [
-    { key: "j", label: "Joueurs", render: () => <Crud table="bu_players" fields={playerFields} orderBy="pseudo" desc={false} /> },
+    { key: "j", label: "Joueurs (site)", render: () => <Crud table="bu_players" fields={playerFields} orderBy="sort" desc={false} defaults={{ is_public: true }} groupBy="team" groupOrder={PUBLIC_TEAM_LABELS} /> },
+    { key: "vitrine", label: "Vitrine équipes", render: () => <Crud table="bu_teams" fields={teamVitrineFields} orderBy="sort" desc={false} /> },
     { key: "staff", label: "Staff", render: () => <Crud table="bu_staff" fields={staffFields} orderBy="name" desc={false} /> },
     { key: "compet", label: "Compétitions", render: () => <Crud table="bu_competitions" fields={competitionFields} orderBy="comp_date" /> },
     docSub("teams", DOC_CATS_TEAMS),

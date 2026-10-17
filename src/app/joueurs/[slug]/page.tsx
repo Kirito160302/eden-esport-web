@@ -5,6 +5,9 @@ import { getPlayer, getPlayers } from "@/lib/content";
 import { Breadcrumb } from "@/components/ui";
 import SocialLinks from "@/components/SocialIcons";
 
+export const revalidate = 120;
+export const dynamicParams = true;
+
 export async function generateStaticParams() {
   const players = await getPlayers();
   return players.map((p) => ({ slug: p.slug }));

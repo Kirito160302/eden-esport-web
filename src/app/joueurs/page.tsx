@@ -5,6 +5,7 @@ import { PlayerCard } from "@/components/cards";
 import Filterable from "@/components/Filterable";
 
 export const metadata: Metadata = { title: "Joueurs" };
+export const revalidate = 120;
 
 export default async function JoueursPage() {
   const players = await getPlayers();

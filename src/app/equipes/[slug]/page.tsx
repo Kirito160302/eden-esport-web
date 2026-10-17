@@ -4,6 +4,9 @@ import { notFound } from "next/navigation";
 import { getTeam, getTeams } from "@/lib/content";
 import { Breadcrumb } from "@/components/ui";
 
+export const revalidate = 120;       // les rosters saisis au bureau remontent en ~2 min
+export const dynamicParams = true;
+
 export async function generateStaticParams() {
   const teams = await getTeams();
   return teams.map((t) => ({ slug: t.slug }));
@@ -22,10 +25,12 @@ export default async function TeamPage({ params }: { params: Promise<{ slug: str
 
   return (
     <>
-      <div className={"page-hero " + team.cls}><div className="wrap">
+      <div className={"page-hero " + team.cls}>
+        {team.banner && <div className="team-banner" style={{ backgroundImage: `url(${team.banner})` }} aria-hidden="true" />}
+        <div className="wrap">
         <Breadcrumb items={[{ label: "Accueil", href: "/" }, { label: "Équipes", href: "/equipes" }, { label: team.name }]} />
         <span className="tag tag--gold"><span className="dot"></span>{team.status}</span>
-        <p className="eyebrow" style={{ marginTop: "1rem" }}>{team.game}</p>
+        <p className="eyebrow" style={{ marginTop: "1rem" }}>{team.game}{team.tier ? ` · ${team.tier}` : ""}</p>
         <h1>{team.name}</h1>
         <p className="lead">{team.description}</p>
       </div></div>
@@ -34,13 +39,16 @@ export default async function TeamPage({ params }: { params: Promise<{ slug: str
         <div className="section-head">
           <p className="eyebrow">Roster</p>
           <h2 style={{ fontSize: "var(--fs-h2)" }}>Les joueurs</h2>
-          <p className="tmp">Effectif en cours de constitution.</p>
+          {team.roster.length === 0 && <p className="tmp">Effectif en cours de constitution.</p>}
         </div>
         <div className="roster">
           {team.roster.map((p) => (
             <Link className="player-card" href={`/joueurs/${p.slug}`} key={p.slug}>
-              <div className="player-avatar"><span className="ini">{p.initials}</span><span className="tag role">{p.role}</span></div>
-              <div className="pc-body"><div className="pseudo">{p.pseudo}</div><div className="game">{p.role}</div></div>
+              <div className="player-avatar">
+                {p.photo ? <img className="pc-photo" src={p.photo} alt={p.pseudo} loading="lazy" /> : <span className="ini">{p.initials}</span>}
+                {p.role ? <span className="tag role">{p.role}</span> : null}
+              </div>
+              <div className="pc-body"><div className="pseudo">{p.pseudo}</div><div className="game">{p.name || p.role}</div></div>
             </Link>
           ))}
         </div>

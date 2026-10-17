@@ -5,6 +5,7 @@ import EsportTabs from "@/components/EsportTabs";
 import { getEsportGames } from "@/lib/content";
 
 export const metadata: Metadata = { title: "Esport" };
+export const revalidate = 120;
 
 export default async function EsportPage() {
   const games = await getEsportGames();
